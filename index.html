@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Mi Local</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="theme-color" content="#3346d3">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Mi Local">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/lucide@0.383.0/dist/umd/lucide.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+body{font-family:'Plus Jakarta Sans',system-ui,sans-serif;background:#eef1f5;color:#1e293b}
+.lucide{width:18px;height:18px}
+.inp{width:100%;border:1px solid #d5dbe5;border-radius:8px;padding:.5rem .7rem;background:#fff;font-size:.9rem}
+.btn{display:inline-flex;align-items:center;gap:.4rem;padding:.5rem .85rem;border-radius:8px;border:1px solid #d5dbe5;background:#fff;font-weight:600;font-size:.85rem}
+.btn:hover{background:#f3f5f9}
+.btn-p{background:#3346d3;border-color:#3346d3;color:#fff}.btn-p:hover{background:#2a3bb5}
+.btn-i{padding:.4rem;border-radius:6px;color:#64748b}.btn-i:hover{background:#eef1f5}
+.card{background:#fff;border-radius:14px;border:1px solid #e3e8ef}
+.chip{font-size:.72rem;font-weight:700;padding:.15rem .5rem;border-radius:99px}
+.k-Disponible{background:#dcf5ee;color:#0b7a64}.k-Reservado{background:#fdf0d1;color:#8a5a00}.k-Vendido{background:#e8ebf0;color:#5b6675}
+th{font-weight:600;text-align:left;font-size:.75rem;color:#64748b;padding:.6rem .75rem}
+td{padding:.6rem .75rem;border-top:1px solid #eef1f5;font-size:.88rem}
+:root{color-scheme:light}#bn{padding-bottom:env(safe-area-inset-bottom,0px)}
+:focus-visible{outline:2px solid #3346d3;outline-offset:2px}
+</style></head>
+<body>
+<aside class="hidden md:flex fixed h-full w-56 flex-col gap-1 bg-white border-r p-4">
+  <div class="flex items-center gap-2 font-extrabold text-lg mb-4 text-[#3346d3]"><i data-lucide="smartphone"></i>Mi Local</div>
+  <div id="sn" class="flex flex-col gap-1"></div>
+</aside>
+<main id="main" class="md:ml-56 px-4 pt-11 md:px-8 md:pt-10 pb-24 md:pb-8 max-w-6xl"></main>
+<nav id="bn" class="md:hidden fixed bottom-0 inset-x-0 bg-white border-t grid grid-cols-4 z-40"></nav>
+<div id="login" class="hidden fixed inset-0 z-[70] bg-[#eef1f5] flex items-center justify-center p-6"><form onsubmit="doLogin(event)" class="card p-6 w-full max-w-sm space-y-3"><div class="flex items-center gap-2 font-extrabold text-lg text-[#3346d3]"><i data-lucide="smartphone"></i>Mi Local</div><input id="lem" type="email" autocomplete="username" class="inp" placeholder="Email" required><input id="lpw" type="password" autocomplete="current-password" class="inp" placeholder="Contraseña" required><p id="lerr" class="text-sm text-red-600"></p><button class="btn btn-p w-full justify-center !py-3">Entrar</button></form></div>
+<div id="modal"></div>
+<div id="sync" class="fixed top-2 right-3 z-30 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-white border" style="margin-top:env(safe-area-inset-top,0px)"></div>
+<div id="toast" class="fixed bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 z-[60]"></div>
+
+<script>
+const $=s=>document.querySelector(s);
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const today=()=>{const d=new Date();return new Date(d-d.getTimezoneOffset()*6e4).toISOString().slice(0,10)};
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const money=n=>'$ '+Math.round(+n||0).toLocaleString('es-AR');
+const fdate=d=>d?d.slice(0,10).split('-').reverse().join('/'):'';
+let db=(()=>{try{return JSON.parse(localStorage.getItem('cel_db'))}catch(e){}})()||{phones:[],acc:[],clients:[],sales:[]};
+const COLS=['phones','acc','clients','sales'];
+let cloud=null,q=Promise.resolve(),synced={phones:{},acc:{},clients:{},sales:{}};
+const setSync=(t,ok)=>{const e=$('#sync');e.textContent=t;e.style.color=ok?'#0b7a64':'#64748b'};
+const keep=()=>localStorage.setItem('cel_db',JSON.stringify(db));
+const save=()=>{keep();push()};
+const wErr=e=>{setSync('Error al sincronizar',0);toast(e&&e.code==='permission-denied'?'Tu usuario solo puede ver los datos. Revisá que tu email esté habilitado en las reglas.':'No se pudo sincronizar. Revisá la conexión.','err')};
+const eq=(a,b)=>{const k=Object.keys(a);return k.length===Object.keys(b).length&&k.every(x=>a[x]===b[x])};
+function push(cols=COLS){
+  if(!cloud)return;
+  for(const c of cols){
+    const now={};db[c].forEach(r=>now[r.id]=JSON.stringify(r));
+    for(const id in now)if(synced[c][id]!==now[id]){synced[c][id]=now[id];const r=JSON.parse(now[id]);q=q.then(()=>cloud.set(c+'/'+id,r)).catch(wErr)}
+    for(const id in synced[c])if(!(id in now)){delete synced[c][id];q=q.then(()=>cloud.del(c+'/'+id)).catch(wErr)}
+  }
+}
+let started=false;
+function startSync(){
+  if(started)return;started=true;setSync('Conectando...',0);
+  const c=window.cloudAPI,init={};let ready=false;
+  const apply=(col,recs)=>{const j={};recs.forEach(r=>j[r.id]=JSON.stringify(r));if(eq(j,synced[col]))return false;synced[col]=j;db[col]=recs;return true};
+  COLS.forEach(col=>c.watch(col,(recs,fromCache)=>{
+    if(fromCache)return;
+    if(!ready){
+      init[col]=recs;if(COLS.some(k=>!init[k]))return;
+      ready=true;cloud=c;
+      if(COLS.every(k=>!init[k].length)){push();setSync('Sincronizado',1);return}
+      COLS.forEach(k=>apply(k,init[k]));
+    }else if(!apply(col,recs))return;
+    db.sales.sort((a,b)=>b.id.localeCompare(a.id));keep();setSync('Sincronizado',1);
+    if(!$('#modal').innerHTML&&!/INPUT|SELECT/.test(document.activeElement.tagName))render();
+  },()=>setSync('Sin conexión',0)));
+}
+async function doLogin(e){e.preventDefault();$('#lerr').textContent='';try{await cloudAPI.login($('#lem').value.trim(),$('#lpw').value)}catch(x){$('#lerr').textContent='Email o contraseña incorrectos.'}}
+async function salir(){if(!confirm('¿Cerrar sesión? Se borran los datos guardados en este dispositivo (siguen en la nube).'))return;await cloudAPI.logout();localStorage.removeItem('cel_db');location.reload()}
+let booted=false;
+function boot(){
+  if(booted)return;booted=true;lucide.createIcons();
+  if(!window.cloudAPI){render();return}
+  cloudAPI.onAuth(u=>{if(u){$('#login').classList.add('hidden');render();startSync()}else $('#login').classList.remove('hidden')});
+}
+setSync('Guardado en este dispositivo',0);
+const ui={tab:'dash',inv:'phones',q:'',st:'',cq:'',sq:'',cart:[],cid:'',cin:'',pay:'Efectivo'};
+const ST=['Disponible','Reservado','Vendido'],COND=['Nuevo','Usado','Grado A','Grado B'],PAY=['Efectivo','Transferencia','Tarjeta','USDT','Otro'];
+const TABS=[['dash','Resumen','layout-dashboard'],['inv','Inventario','smartphone'],['cli','Clientes','users'],['pos','Ventas','shopping-cart']];
+const cl=c=>c.name+(c.dni?' - '+c.dni:'');
+const setH=(s,h)=>{$(s).innerHTML=h;lucide.createIcons()};
+const go=k=>{ui.tab=k;render()};
+
+function nav(){
+  const h=m=>TABS.map(([k,l,i])=>`<button onclick="go('${k}')" class="${m?'flex flex-col items-center gap-0.5 py-2 text-[11px]':'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm w-full text-left'} font-semibold ${ui.tab===k?(m?'text-[#3346d3]':'bg-[#eceefc] text-[#3346d3]'):'text-slate-500 hover:text-slate-800'}"><i data-lucide="${i}"></i>${l}</button>`).join('');
+  $('#sn').innerHTML=h(0);$('#bn').innerHTML=h(1);
+}
+const head=(t,a='')=>`<div class="flex items-center justify-between mb-5 gap-2 flex-wrap"><h1 class="text-2xl font-extrabold">${t}</h1><div class="flex gap-2">${a}</div></div>`;
+let tt;function toast(m,e){const t=$('#toast');t.innerHTML=`<div class="px-4 py-2.5 rounded-lg text-sm font-semibold text-white shadow-lg ${e?'bg-red-600':'bg-slate-900'}">${m}</div>`;clearTimeout(tt);tt=setTimeout(()=>t.innerHTML='',2800)}
+const closeM=()=>$('#modal').innerHTML='';
+function modal(title,body,onSave){
+  $('#modal').innerHTML=`<div class="fixed inset-0 bg-slate-900/50 z-50 flex items-end md:items-center justify-center md:p-4" onclick="if(event.target===this)closeM()"><form id="mf" class="bg-white w-full md:max-w-lg rounded-t-2xl md:rounded-2xl max-h-[92vh] overflow-y-auto p-5"><div class="flex justify-between items-center mb-4"><h3 class="font-bold text-lg">${title}</h3><button type="button" class="btn-i" onclick="closeM()"><i data-lucide="x"></i></button></div>${body}${onSave?'<div class="flex justify-end gap-2 mt-5"><button type="button" class="btn" onclick="closeM()">Cancelar</button><button class="btn btn-p">Guardar</button></div>':''}</form></div>`;
+  lucide.createIcons();
+  if(onSave)$('#mf').onsubmit=e=>{e.preventDefault();onSave(Object.fromEntries(new FormData(e.target)))};
+}
+const fld=(n,l,v='',t='text',o={})=>`<label class="block ${o.full?'col-span-2':''}"><span class="text-slate-500 text-xs font-semibold">${l}</span>${t==='select'?`<select name="${n}" class="inp mt-1">${o.opts.map(x=>`<option ${x==v?'selected':''}>${x}</option>`).join('')}</select>`:`<input name="${n}" type="${t}" value="${esc(v)}" class="inp mt-1" ${o.req?'required':''} ${t==='number'?'min="0" step="any"':''} ${o.att||''}>`}</label>`;
+const grid=h=>`<div class="grid grid-cols-2 gap-3">${h}</div>`;
+
+/* ---------- VISTAS ---------- */
+const V={};
+V.dash=()=>{
+  const ph=db.phones.filter(p=>p.status!=='Vendido');
+  const sa=db.acc.filter(x=>!x.incl);
+  const nAcc=sa.reduce((a,x)=>a+x.stock,0);
+  const cap=ph.reduce((a,p)=>a+p.cost,0)+sa.reduce((a,x)=>a+x.stock*x.cost,0);
+  const est=ph.reduce((a,p)=>a+p.price,0)+sa.reduce((a,x)=>a+x.stock*x.price,0);
+  const gan=db.sales.reduce((a,s)=>a+s.profit,0);
+  const low=db.acc.filter(x=>x.stock<=x.min);
+  const card=(l,v,s,ic,c='')=>`<div class="card p-4 ${c}"><div class="flex justify-between text-sm font-semibold opacity-75">${l}<i data-lucide="${ic}"></i></div><div class="text-2xl font-extrabold mt-2">${v}</div><div class="text-xs opacity-75 mt-1">${s}</div></div>`;
+  return head('Resumen',`<button class="btn" onclick="exportDb()"><i data-lucide="download"></i>Exportar copia</button><label class="btn cursor-pointer"><i data-lucide="upload"></i>Importar<input type="file" accept=".json" class="hidden" onchange="importDb(this)"></label>${window.cloudAPI?'<button class="btn" onclick="salir()">Salir</button>':''}`)+
+  `<div class="grid grid-cols-2 xl:grid-cols-4 gap-3">`+
+  card('Capital en stock',money(cap),`${ph.length} celulares y ${nAcc} accesorios`,'wallet')+
+  card('Valor de venta estimado',money(est),'Ganancia potencial: '+money(est-cap),'tag')+
+  card('Ganancia neta acumulada',money(gan),db.sales.length+' ventas registradas','trending-up','!bg-[#3346d3] !text-white !border-[#3346d3]')+
+  card('Stock bajo',low.length,low.length?'Accesorios para reponer':'Todo en orden','alert-triangle',low.length?'!bg-[#fdf0d1] !border-[#f0d38a]':'')+`</div>
+  <div class="grid lg:grid-cols-2 gap-3 mt-3">
+  <div class="card p-4"><h2 class="font-bold mb-2">Accesorios con stock bajo</h2>${low.length?low.map(x=>`<div class="flex justify-between py-2 border-t first:border-0 text-sm"><span>${esc(x.name)}</span><span class="chip" style="background:#fde2e2;color:#a11d1d">Quedan ${x.stock} (mín. ${x.min})</span></div>`).join(''):'<p class="text-sm text-slate-500">Ningún accesorio llegó a su stock mínimo.</p>'}</div>
+  <div class="card p-4"><h2 class="font-bold mb-2">Últimas ventas</h2>${db.sales.length?db.sales.slice(0,6).map(s=>saleRow(s)).join(''):'<p class="text-sm text-slate-500">Todavía no registraste ventas. Andá a Ventas para cargar la primera.</p>'}</div></div>`;
+};
+const saleRow=(s,undo)=>`<div class="flex justify-between gap-3 py-2.5 border-t first:border-0 text-sm"><div><div class="font-semibold">${esc(s.cname)} <span class="text-slate-400 font-normal">${fdate(s.date)}</span></div><div class="text-xs text-slate-500">${s.items.map(i=>esc(i.name)+(i.qty>1?' x'+i.qty:'')).join(', ')} - ${s.pay}</div></div><div class="text-right whitespace-nowrap"><div class="font-bold">${money(s.total)}</div><div class="text-xs text-[#0b7a64] font-semibold">+${money(s.profit)}</div>${undo?`<button class="text-xs text-red-600 font-semibold" onclick="anular('${s.id}')">Anular</button>`:''}</div></div>`;
+
+V.inv=()=>{const P=ui.inv==='phones';return head('Inventario',`<button class="btn btn-p" onclick="${P?'phoneForm()':'accForm()'}"><i data-lucide="plus"></i>${P?'Nuevo celular':'Nuevo accesorio'}</button>`)+
+`<div class="flex flex-wrap gap-2 mb-3"><div class="flex bg-white border rounded-lg p-0.5">${[['phones','Celulares'],['acc','Accesorios']].map(([k,l])=>`<button onclick="ui.inv='${k}';ui.q='';ui.st='';render()" class="px-3 py-1.5 rounded-md text-sm font-semibold ${ui.inv===k?'bg-[#3346d3] text-white':'text-slate-600'}">${l}</button>`).join('')}</div>
+<input class="inp !w-auto flex-1 min-w-[180px]" placeholder="${P?'Buscar modelo, IMEI o color':'Buscar accesorio o categoría'}" value="${esc(ui.q)}" oninput="ui.q=this.value;invList()">
+${P?`<select class="inp !w-auto" onchange="ui.st=this.value;invList()"><option value="">Todos los estados</option>${ST.map(s=>`<option ${ui.st===s?'selected':''}>${s}</option>`).join('')}</select>`:''}</div><div id="list"></div>`};
+
+function invList(){
+  const q=ui.q.toLowerCase();
+  if(ui.inv==='phones'){
+    const r=db.phones.filter(p=>(!q||(p.model+p.imei+p.color+p.cap).toLowerCase().includes(q))&&(!ui.st||p.status===ui.st)).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+    if(!r.length)return setH('#list',`<div class="card p-8 text-center text-slate-500 text-sm">${db.phones.length?'Ningún celular coincide con la búsqueda.':'Todavía no cargaste celulares. Usá «Nuevo celular» para empezar.'}</div>`);
+    setH('#list',`<div class="card overflow-x-auto"><table class="w-full"><thead><tr><th>Equipo</th><th class="hidden md:table-cell">Batería</th><th class="hidden md:table-cell">Condición</th><th class="hidden lg:table-cell">Costo</th><th>Venta</th><th>Estado</th><th></th></tr></thead><tbody>${r.map(p=>`<tr><td><div class="font-semibold">${esc(p.model)} <span class="text-slate-500 font-normal">${esc(p.cap)}</span></div><div class="text-xs text-slate-500">IMEI ${esc(p.imei)}${p.color?' - '+esc(p.color):''}</div><div class="text-xs text-slate-400">Ingreso ${fdate(p.date)}</div></td><td class="hidden md:table-cell">${p.bat!==''?p.bat+'%':'-'}</td><td class="hidden md:table-cell">${esc(p.cond)}</td><td class="hidden lg:table-cell">${money(p.cost)}<div class="text-xs text-slate-400">${esc(p.supplier)}</div></td><td class="font-semibold">${money(p.price)}</td><td><span class="chip k-${p.status}">${p.status}</span></td><td class="text-right whitespace-nowrap"><button class="btn-i" title="Editar" onclick="phoneForm('${p.id}')"><i data-lucide="pencil"></i></button><button class="btn-i" title="Eliminar" onclick="del('phones','${p.id}')"><i data-lucide="trash-2"></i></button></td></tr>`).join('')}</tbody></table></div>`);
+  }else{
+    const r=db.acc.filter(a=>!q||(a.name+a.cat).toLowerCase().includes(q));
+    if(!r.length)return setH('#list',`<div class="card p-8 text-center text-slate-500 text-sm">${db.acc.length?'Ningún accesorio coincide con la búsqueda.':'Todavía no cargaste accesorios. Usá «Nuevo accesorio» para empezar.'}</div>`);
+    setH('#list',`<div class="card overflow-x-auto"><table class="w-full"><thead><tr><th>Accesorio</th><th>Stock</th><th class="hidden md:table-cell">Costo</th><th>Venta</th><th></th></tr></thead><tbody>${r.map(a=>`<tr><td><div class="font-semibold">${esc(a.name)} ${a.incl?'<span class="chip" style="background:#e6e9fb;color:#3346d3">Se entrega</span>':''}</div><div class="text-xs text-slate-500">${esc(a.cat)}</div></td><td>${a.stock<=a.min?`<span class="chip" style="background:#fde2e2;color:#a11d1d">${a.stock} - bajo</span>`:a.stock}</td><td class="hidden md:table-cell">${money(a.cost)}</td><td class="font-semibold">${a.incl?'-':money(a.price)}</td><td class="text-right whitespace-nowrap"><button class="btn-i" title="Editar" onclick="accForm('${a.id}')"><i data-lucide="pencil"></i></button><button class="btn-i" title="Eliminar" onclick="del('acc','${a.id}')"><i data-lucide="trash-2"></i></button></td></tr>`).join('')}</tbody></table></div>`);
+  }
+}
+function del(t,id){if(!confirm('¿Eliminar este registro?'))return;db[t]=db[t].filter(x=>x.id!==id);save();render()}
+
+function phoneForm(id){
+  const p=db.phones.find(x=>x.id===id)||{date:today(),status:'Disponible',cond:'Usado'};
+  modal(id?'Editar celular':'Nuevo celular',grid(
+    fld('model','Modelo exacto',p.model,'text',{req:1,full:1,att:'placeholder="iPhone 13 Pro"'})+
+    fld('imei','IMEI (único)',p.imei,'text',{req:1,full:1,att:'inputmode="numeric"'})+
+    fld('cap','Capacidad',p.cap,'text',{att:'placeholder="128GB"'})+fld('bat','Salud de batería (%)',p.bat,'number',{att:'max="100"'})+
+    fld('color','Color',p.color)+fld('cond','Condición',p.cond,'select',{opts:COND})+
+    fld('cost','Precio de compra (costo)',p.cost,'number',{req:1})+fld('price','Precio de venta',p.price,'number',{req:1})+
+    fld('supplier','Proveedor',p.supplier)+fld('date','Fecha de ingreso',p.date,'date')+
+    fld('status','Estado',p.status,'select',{opts:ST,full:1}),
+  ),d=>{
+    d.imei=d.imei.trim();
+    if(db.phones.some(x=>x.imei===d.imei&&x.id!==id))return toast('Ese IMEI ya está cargado','err');
+    d.cost=+d.cost;d.price=+d.price;d.bat=d.bat===''?'':+d.bat;
+    if(id)Object.assign(p,d);else db.phones.push({id:uid(),...d});
+    save();closeM();render();toast('Celular guardado');
+  });
+}
+function accForm(id){
+  const a=db.acc.find(x=>x.id===id)||{min:3};
+  modal(id?'Editar accesorio':'Nuevo accesorio',grid(
+    fld('name','Nombre',a.name,'text',{req:1,full:1})+fld('cat','Categoría',a.cat,'text',{att:'placeholder="Fundas, cargadores..."'})+
+    fld('stock','Stock actual',a.stock,'number',{req:1})+fld('min','Avisar cuando queden',a.min,'number',{req:1})+
+    fld('cost','Costo',a.cost,'number',{req:1})+fld('price','Precio de venta',a.price,'number')+`<label class="col-span-2 flex items-start gap-2 text-sm"><input type="checkbox" name="incl" value="1" ${a.incl?'checked':''} class="mt-1"><span><b>Se entrega con el celular</b> (no se vende). No cuenta como capital ni como valor de venta.</span></label>`,
+  ),d=>{
+    ['stock','min','cost','price'].forEach(k=>d[k]=+d[k]);d.incl=d.incl==='1';
+    if(id)Object.assign(a,d);else db.acc.push({id:uid(),...d});
+    save();closeM();render();toast('Accesorio guardado');
+  });
+}
+
+V.cli=()=>head('Clientes',`<button class="btn btn-p" onclick="cliForm()"><i data-lucide="user-plus"></i>Nuevo cliente</button>`)+
+  `<input class="inp mb-3" placeholder="Buscar por nombre, DNI o teléfono" value="${esc(ui.cq)}" oninput="ui.cq=this.value;cliList()"><div id="list"></div>`;
+function cliList(){
+  const q=ui.cq.toLowerCase();
+  const r=db.clients.filter(c=>!q||(c.name+c.dni+c.tel).toLowerCase().includes(q)).sort((a,b)=>a.name.localeCompare(b.name));
+  if(!r.length)return setH('#list',`<div class="card p-8 text-center text-slate-500 text-sm">${db.clients.length?'Ningún cliente coincide.':'Todavía no hay clientes. Se pueden crear acá o al momento de vender.'}</div>`);
+  setH('#list',`<div class="grid md:grid-cols-2 xl:grid-cols-3 gap-3">${r.map(c=>{const vs=db.sales.filter(s=>s.cid===c.id);return `<div class="card p-4 flex flex-col gap-2"><div class="flex justify-between"><div><div class="font-bold">${esc(c.name)}</div><div class="text-xs text-slate-500">${esc(c.dni)}</div></div><div class="whitespace-nowrap"><button class="btn-i" onclick="cliForm('${c.id}')"><i data-lucide="pencil"></i></button><button class="btn-i" onclick="del('clients','${c.id}')"><i data-lucide="trash-2"></i></button></div></div>
+  <div class="text-sm text-slate-600">${c.tel?`<a class="text-[#3346d3] font-semibold" target="_blank" href="https://wa.me/${c.tel.replace(/\D/g,'')}">${esc(c.tel)}</a>`:''}${c.addr?`<div>${esc(c.addr)}</div>`:''}</div>
+  <div class="flex justify-between items-center mt-auto pt-2 border-t"><div class="text-xs text-slate-500">${vs.length} compras - <b>${money(vs.reduce((a,s)=>a+s.total,0))}</b></div><button class="btn" onclick="cliHist('${c.id}')">Ver compras</button></div></div>`}).join('')}</div>`);
+}
+function cliForm(id,quick){
+  const c=db.clients.find(x=>x.id===id)||{};
+  modal(id?'Editar cliente':'Nuevo cliente',grid(
+    fld('name','Nombre y apellido',c.name,'text',{req:1,full:1})+fld('dni','DNI / CUIT',c.dni)+fld('tel','Teléfono / WhatsApp',c.tel,'tel')+fld('addr','Dirección / Email',c.addr,'text',{full:1}),
+  ),d=>{
+    let n=c;if(id)Object.assign(c,d);else{n={id:uid(),...d};db.clients.push(n)}
+    if(quick){ui.cid=n.id;ui.cin=cl(n)}
+    save();closeM();render();toast('Cliente guardado');
+  });
+}
+function cliHist(id){
+  const c=db.clients.find(x=>x.id===id),vs=db.sales.filter(s=>s.cid===id);
+  modal('Compras de '+esc(c.name),vs.length?vs.map(s=>saleRow(s)).join(''):'<p class="text-sm text-slate-500">Este cliente todavía no realizó compras.</p>');
+}
+
+V.pos=()=>head('Nueva venta')+`<div class="grid lg:grid-cols-5 gap-4">
+<div class="lg:col-span-3 space-y-3">
+<div class="card p-4"><div class="text-xs font-semibold text-slate-500 mb-1">Cliente</div><div class="flex gap-2"><input id="cin" list="cl" class="inp" placeholder="Buscar por nombre o DNI (vacío = consumidor final)" value="${esc(ui.cin)}" oninput="pickCli(this.value)"><button class="btn" title="Cliente nuevo" onclick="cliForm('',1)"><i data-lucide="user-plus"></i></button></div><datalist id="cl">${db.clients.map(c=>`<option value="${esc(cl(c))}">`).join('')}</datalist></div>
+<div class="card p-4"><div class="text-xs font-semibold text-slate-500 mb-1">Producto (escaneá o escribí el IMEI, modelo o accesorio)</div><input class="inp" placeholder="Buscar producto" value="${esc(ui.sq)}" oninput="ui.sq=this.value;posRes()" onkeydown="if(event.key==='Enter')scan()"><div id="res" class="mt-2"></div></div></div>
+<div class="lg:col-span-2"><div class="card p-4 lg:sticky lg:top-6" id="cart"></div></div></div>
+<h2 class="font-bold mt-8 mb-3">Últimas ventas</h2><div class="card px-4" id="hist"></div>`;
+const pickCli=v=>{ui.cin=v;const c=db.clients.find(c=>cl(c)===v);ui.cid=c?c.id:''};
+function scan(){const p=db.phones.find(p=>p.imei===ui.sq.trim()&&p.status!=='Vendido');if(p&&!ui.cart.some(c=>c.id===p.id)){addCart('p',p.id);ui.sq='';document.querySelector('#res').previousElementSibling.value=''}}
+function posRes(){
+  const q=ui.sq.toLowerCase().trim(),inCart=id=>ui.cart.find(c=>c.id===id);
+  const ph=db.phones.filter(p=>p.status!=='Vendido'&&!inCart(p.id)&&(!q||(p.imei+' '+p.model+' '+p.color+' '+p.cap).toLowerCase().includes(q))).slice(0,8);
+  const ac=db.acc.filter(a=>a.stock-(inCart(a.id)?.qty||0)>0&&(!q||a.name.toLowerCase().includes(q))).slice(0,8);
+  const row=(t,id,ti,sub,pr)=>`<button class="w-full flex justify-between items-center gap-3 text-left p-2.5 rounded-lg hover:bg-slate-50 border-t first:border-0" onclick="addCart('${t}','${id}')"><div><div class="font-semibold text-sm">${ti}</div><div class="text-xs text-slate-500">${sub}</div></div><div class="font-bold text-sm whitespace-nowrap">${money(pr)}</div></button>`;
+  setH('#res',ph.length||ac.length?
+    (ph.length?`<div class="text-xs font-semibold text-slate-400 mt-1">Celulares</div>`+ph.map(p=>row('p',p.id,esc(p.model)+' '+esc(p.cap),'IMEI '+esc(p.imei)+(p.status==='Reservado'?' - Reservado':''),p.price)).join(''):'')+
+    (ac.length?`<div class="text-xs font-semibold text-slate-400 mt-2">Accesorios</div>`+ac.map(a=>row('a',a.id,esc(a.name),(a.incl?'Se entrega con el celular - ':'')+'Stock '+a.stock,a.incl?0:a.price)).join(''):''):
+    '<p class="text-sm text-slate-500 p-2">No hay productos disponibles con ese dato.</p>');
+}
+function addCart(t,id){
+  if(t==='p'){const p=db.phones.find(x=>x.id===id);if(p.status==='Reservado')toast('Ojo: este equipo figura como reservado');ui.cart.push({t,id,name:p.model+' '+p.cap+' (IMEI '+p.imei+')',qty:1,price:p.price,cost:p.cost})}
+  else{const a=db.acc.find(x=>x.id===id),c=ui.cart.find(x=>x.id===id);if(c){if(c.qty<a.stock)c.qty++}else ui.cart.push({t,id,name:a.name,qty:1,price:a.incl?0:a.price,cost:a.cost,incl:!!a.incl})}
+  posRes();posCart();
+}
+const totals=()=>({total:ui.cart.reduce((a,c)=>a+c.price*c.qty,0),profit:ui.cart.reduce((a,c)=>a+(c.price-c.cost)*c.qty,0)});
+function qty(i,d){const c=ui.cart[i];if(c.t==='p')return;const a=db.acc.find(x=>x.id===c.id);c.qty=Math.max(1,Math.min(a.stock,c.qty+d));posRes();posCart()}
+function setPr(i,v){ui.cart[i].price=Math.max(0,+v||0);posCart()}
+function posCart(){
+  const {total,profit}=totals();
+  setH('#cart',`<h2 class="font-bold mb-2">Carrito</h2>${ui.cart.length?ui.cart.map((c,i)=>`<div class="py-2.5 border-t first:border-0"><div class="flex justify-between gap-2 text-sm"><span class="font-semibold">${esc(c.name)}</span><button class="btn-i !p-1" onclick="ui.cart.splice(${i},1);posRes();posCart()"><i data-lucide="x"></i></button></div><div class="flex items-center gap-2 mt-1.5">${c.t==='a'?`<button class="btn !px-2 !py-0.5" onclick="qty(${i},-1)">-</button><b class="text-sm w-5 text-center">${c.qty}</b><button class="btn !px-2 !py-0.5" onclick="qty(${i},1)">+</button>`:''}<span class="text-xs text-slate-500 ml-auto">Precio</span><input type="number" min="0" class="inp !w-28 !py-1" ${c.incl?'disabled':''} value="${c.price}" onchange="setPr(${i},this.value)"></div></div>`).join(''):'<p class="text-sm text-slate-500 py-4">Buscá un producto para agregarlo a la venta.</p>'}
+  <div class="border-t mt-2 pt-3 space-y-2"><label class="block text-xs font-semibold text-slate-500">Método de pago<select class="inp mt-1" onchange="ui.pay=this.value">${PAY.map(p=>`<option ${ui.pay===p?'selected':''}>${p}</option>`).join('')}</select></label>
+  <div class="flex justify-between text-sm"><span>Ganancia neta</span><b class="${profit<0?'text-red-600':'text-[#0b7a64]'}">${money(profit)}</b></div>
+  <div class="flex justify-between text-lg font-extrabold"><span>Total</span><span>${money(total)}</span></div>
+  <button class="btn btn-p w-full justify-center !py-3 disabled:opacity-40" ${ui.cart.length?'':'disabled'} onclick="confirmSale()"><i data-lucide="check"></i>Confirmar venta</button></div>`);
+}
+function confirmSale(){
+  if(!ui.cart.length)return;
+  if(ui.cin&&!ui.cid)return toast('Elegí un cliente de la lista o creá uno con el botón de usuario','err');
+  for(const c of ui.cart){
+    if(c.t==='p'){const p=db.phones.find(x=>x.id===c.id);if(!p||p.status==='Vendido')return toast(c.name+' ya no está disponible','err')}
+    else{const a=db.acc.find(x=>x.id===c.id);if(!a||a.stock<c.qty)return toast('Stock insuficiente: '+c.name,'err')}
+  }
+  const {total,profit}=totals(),cli=db.clients.find(x=>x.id===ui.cid);
+  ui.cart.forEach(c=>{if(c.t==='p')db.phones.find(x=>x.id===c.id).status='Vendido';else db.acc.find(x=>x.id===c.id).stock-=c.qty});
+  db.sales.unshift({id:uid(),date:today(),cid:ui.cid,cname:cli?cli.name:'Consumidor final',items:ui.cart.map(c=>({...c})),pay:ui.pay,total,profit});
+  save();ui.cart=[];ui.cid='';ui.cin='';ui.sq='';render();toast('Venta registrada');
+}
+function anular(id){
+  if(!confirm('¿Anular esta venta? Los equipos vuelven a Disponible y los accesorios recuperan su stock.'))return;
+  const s=db.sales.find(x=>x.id===id);
+  s.items.forEach(i=>{if(i.t==='p'){const p=db.phones.find(x=>x.id===i.id);if(p)p.status='Disponible'}else{const a=db.acc.find(x=>x.id===i.id);if(a)a.stock+=i.qty}});
+  db.sales=db.sales.filter(x=>x.id!==id);save();render();toast('Venta anulada');
+}
+
+/* ---------- COPIA DE SEGURIDAD ---------- */
+function exportDb(){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(db,null,1)],{type:'application/json'}));a.download='respaldo-'+today()+'.json';a.click()}
+function importDb(i){
+  const f=i.files[0];if(!f)return;const r=new FileReader();
+  r.onload=()=>{try{const d=JSON.parse(r.result);if(!d.phones||!d.acc||!d.clients||!d.sales)throw 0;if(!confirm('Esto reemplaza los datos actuales. ¿Continuar?'))return;db=d;save();render();toast('Datos importados')}catch(e){toast('El archivo no es válido','err')}};
+  r.readAsText(f);
+}
+
+function render(){
+  nav();$('#main').innerHTML=V[ui.tab]();
+  ({inv:invList,cli:cliList,pos:()=>{posRes();posCart();setH('#hist',db.sales.length?db.sales.slice(0,10).map(s=>saleRow(s,1)).join(''):'<p class="text-sm text-slate-500 py-4">Sin ventas registradas.</p>')}})[ui.tab]?.();
+  lucide.createIcons();
+}
+if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js');
+window.cloudDone?boot():addEventListener('cloudready',boot,{once:true});
+</script>
+<script type="module">
+try{
+  const {firebaseConfig:cfg}=await import('./config.js');
+  if(cfg&&cfg.apiKey&&!cfg.apiKey.startsWith('PEGAR')){
+    const V='https://www.gstatic.com/firebasejs/10.12.2/';
+    const [A,Au,F]=await Promise.all([import(V+'firebase-app.js'),import(V+'firebase-auth.js'),import(V+'firebase-firestore.js')]);
+    const app=A.initializeApp(cfg),auth=Au.getAuth(app),fs=F.getFirestore(app);
+    window.cloudAPI={
+      login:(e,p)=>Au.signInWithEmailAndPassword(auth,e,p),
+      logout:()=>Au.signOut(auth),
+      onAuth:cb=>Au.onAuthStateChanged(auth,cb),
+      set:(path,d)=>F.setDoc(F.doc(fs,path),d),
+      del:path=>F.deleteDoc(F.doc(fs,path)),
+      watch:(col,next,err)=>F.onSnapshot(F.collection(fs,col),sn=>next(sn.docs.map(d=>d.data()),sn.metadata.fromCache),err)
+    };
+  }
+}catch(e){console.error(e)}
+window.cloudDone=true;window.dispatchEvent(new Event('cloudready'));
+</script>
+</body></html>
