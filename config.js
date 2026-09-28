@@ -1,10 +1,8 @@
-// Pegá acá los datos de tu proyecto de Firebase (Configuración del proyecto > Tus apps > Web).
-// Mientras diga "PEGAR", la app funciona sin nube, solo con los datos de este dispositivo.
 export const firebaseConfig = {
-  apiKey: "PEGAR_API_KEY",
-  authDomain: "PEGAR",
-  projectId: "PEGAR",
-  storageBucket: "PEGAR",
-  messagingSenderId: "PEGAR",
-  appId: "PEGAR"
+  apiKey: "AIzaSyDCL-p4ZJLRCt7-pJUMeZd0WnvofaIkYG0",
+  authDomain: "proyecto-mi-apple-app-y-pagina.firebaseapp.com",
+  projectId: "proyecto-mi-apple-app-y-pagina",
+  storageBucket: "proyecto-mi-apple-app-y-pagina.firebasestorage.app",
+  messagingSenderId: "743416916320",
+  appId: "1:743416916320:web:48200ff7545b7c4a1c9605"
 };
