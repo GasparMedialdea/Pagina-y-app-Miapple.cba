@@ -45,7 +45,12 @@ const $=s=>document.querySelector(s);
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 const today=()=>{const d=new Date();return new Date(d-d.getTimezoneOffset()*6e4).toISOString().slice(0,10)};
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const money=n=>'$ '+Math.round(+n||0).toLocaleString('es-AR');
+const FX=()=>+CFG().fx||0,BC=()=>CFG().base||'USD',OC=()=>BC()==='USD'?'ARS':'USD';
+const fm=(n,c)=>(c==='USD'?'US$ ':'$ ')+(+n||0).toLocaleString('es-AR',{maximumFractionDigits:c==='USD'?2:0});
+const money=n=>fm(n,BC());
+const toBase=(a,cur,fx)=>cur===BC()?a:(BC()==='USD'?a/fx:a*fx);
+const fromBase=(n,cur,fx)=>cur===BC()?n:(BC()==='USD'?n*fx:n/fx);
+const curName=c=>c==='ARS'?'pesos':'dólares';
 const fdate=d=>d?d.slice(0,10).split('-').reverse().join('/'):'';
 let db=(()=>{try{return JSON.parse(localStorage.getItem('cel_db'))}catch(e){}})()||{phones:[],acc:[],clients:[],sales:[]};
 const COLS=['phones','acc','clients','sales','debts','moves','cfg'];
@@ -97,7 +102,7 @@ function boot(){
   cloudAPI.onAuth(u=>{if(u){$('#login').classList.add('hidden');render();startSync()}else $('#login').classList.remove('hidden')});
 }
 setSync('Guardado en este dispositivo',0);
-const ui={tab:'dash',inv:'phones',q:'',st:'',cq:'',sq:'',cart:[],cid:'',cin:'',pay:'Efectivo',paid:'',cuo:'',venc:''};
+const ui={tab:'dash',inv:'phones',q:'',st:'',cq:'',sq:'',cart:[],cid:'',cin:'',pay:'Efectivo',paid:'',cuo:'',venc:'',cur:'',fxs:''};
 const ST=['Disponible','Reservado','Vendido'],COND=['Nuevo','Usado','Grado A','Grado B'],PAY=['Efectivo','Transferencia','Tarjeta','USDT','Otro'];
 const TABS=[['dash','Resumen','layout-dashboard'],['inv','Inventario','smartphone'],['cli','Clientes','users'],['pos','Ventas','shopping-cart'],['fin','Deudas','banknote']];
 const cl=c=>c.name+(c.dni?' - '+c.dni:'');
@@ -131,20 +136,19 @@ V.dash=()=>{
   const low=db.acc.filter(x=>x.stock<=x.min);
   const vencidas=pend('cobrar').filter(d=>d.venc&&d.venc<today()).length;
   const card=(l,v,s,ic,c='')=>`<div class="card p-4 ${c}"><div class="flex justify-between text-sm font-semibold opacity-75">${l}<i data-lucide="${ic}"></i></div><div class="text-2xl font-extrabold mt-2">${v}</div><div class="text-xs opacity-75 mt-1">${s}</div></div>`;
-  return head('Resumen',`<button class="btn" onclick="cfgForm()"><i data-lucide="settings"></i>Ajustes</button><button class="btn" onclick="exportDb()"><i data-lucide="download"></i>Exportar copia</button><label class="btn cursor-pointer"><i data-lucide="upload"></i>Importar<input type="file" accept=".json" class="hidden" onchange="importDb(this)"></label>${window.cloudAPI?'<button class="btn" onclick="salir()">Salir</button>':''}`)+
+  return head('Resumen',`<button class="btn" onclick="fxForm()"><i data-lucide="dollar-sign"></i>${FX()?'Dólar '+fm(FX(),'ARS'):'Cargar dólar'}</button><button class="btn" onclick="cfgForm()"><i data-lucide="settings"></i>Ajustes</button><button class="btn" onclick="exportDb()"><i data-lucide="download"></i>Exportar copia</button><label class="btn cursor-pointer"><i data-lucide="upload"></i>Importar<input type="file" accept=".json" class="hidden" onchange="importDb(this)"></label>${window.cloudAPI?'<button class="btn" onclick="salir()">Salir</button>':''}`)+
   `<div class="grid grid-cols-2 xl:grid-cols-4 gap-3">`+
   card('Capital en stock',money(cap),`${ph.length} celulares y ${nAcc} accesorios`,'wallet')+
   card('Valor de venta estimado',money(est),'Ganancia potencial: '+money(est-cap),'tag')+
-  card('Ganancia neta acumulada',money(gan),db.sales.length+' ventas registradas','trending-up','!bg-[#3346d3] !text-white !border-[#3346d3]')+
-  card('Stock bajo',low.length,low.length?'Accesorios para reponer':'Todo en orden','alert-triangle',low.length?'!bg-[#fdf0d1] !border-[#f0d38a]':'')+`</div><div class="grid md:grid-cols-3 gap-3 mt-3">`+
-  `<button class="text-left" onclick="ajusteForm()">`+card('Plata para invertir',money(caja()),'Estimada. Tocá para ajustarla','banknote','!bg-[#0b7a64] !text-white !border-[#0b7a64]')+`</button>`+
+  `<button class="text-left [&>div]:h-full" onclick="gananciaInfo()">`+card('Ganancia neta acumulada',money(gan),db.sales.length+' ventas - tocá para ver el detalle','trending-up','!bg-[#3346d3] !text-white !border-[#3346d3]')+`</button>`+
+  `<button class="text-left [&>div]:h-full" onclick="lowInfo()">`+card('Stock bajo',low.length,low.length?'Tocá para ver cuáles':'Todo en orden','alert-triangle',low.length?'!bg-[#fdf0d1] !border-[#f0d38a]':'')+`</button>`+`</div><div class="grid md:grid-cols-3 gap-3 mt-3">`+
+  `<button class="text-left [&>div]:h-full" onclick="ajusteForm()">`+card('Plata para invertir',money(caja())+`<div class="text-lg font-bold opacity-90 mt-0.5">`+(FX()?'= '+fm(fromBase(caja(),OC(),FX()),OC()):'Cargá el dólar para ver la otra moneda')+`</div>`,'Estimada. Tocá para ajustarla','banknote','!bg-[#0b7a64] !text-white !border-[#0b7a64]')+`</button>`+
   card('Me deben',money(sum(pend('cobrar'),saldo)),pend('cobrar').length+' cuentas'+(vencidas?' - '+vencidas+' vencidas':''),'arrow-down-left',vencidas?'!bg-[#fde2e2] !border-[#f0b3b3]':'')+
   card('Debo a proveedores',money(sum(pend('pagar'),saldo)),pend('pagar').length+' cuentas','arrow-up-right')+`</div>
-  <div class="grid lg:grid-cols-2 gap-3 mt-3">
-  <div class="card p-4"><h2 class="font-bold mb-2">Accesorios con stock bajo</h2>${low.length?low.map(x=>`<div class="flex justify-between py-2 border-t first:border-0 text-sm"><span>${esc(x.name)}</span><span class="chip" style="background:#fde2e2;color:#a11d1d">Quedan ${x.stock} (mín. ${x.min})</span></div>`).join(''):'<p class="text-sm text-slate-500">Ningún accesorio llegó a su stock mínimo.</p>'}</div>
+  <div class="grid gap-3 mt-3">
   <div class="card p-4"><h2 class="font-bold mb-2">Últimas ventas</h2>${db.sales.length?db.sales.slice(0,6).map(s=>saleRow(s)).join(''):'<p class="text-sm text-slate-500">Todavía no registraste ventas. Andá a Ventas para cargar la primera.</p>'}</div></div>`;
 };
-const saleRow=(s,undo)=>`<div class="flex justify-between gap-3 py-2.5 border-t first:border-0 text-sm"><div><div class="font-semibold">${esc(s.cname)} <span class="text-slate-400 font-normal">${fdate(s.date)}</span></div><div class="text-xs text-slate-500">${s.items.map(i=>esc(i.name)+(i.qty>1?' x'+i.qty:'')).join(', ')} - ${s.pay}</div></div><div class="text-right whitespace-nowrap"><div class="font-bold">${money(s.total)}</div><div class="text-xs text-[#0b7a64] font-semibold">+${money(s.profit)}</div>${undo?`<button class="text-xs text-red-600 font-semibold" onclick="anular('${s.id}')">Anular</button>`:''}</div></div>`;
+const saleRow=(s,undo)=>`<div class="flex justify-between gap-3 py-2.5 border-t first:border-0 text-sm"><div><div class="font-semibold">${esc(s.cname)} <span class="text-slate-400 font-normal">${fdate(s.date)}</span></div><div class="text-xs text-slate-500">${s.items.map(i=>esc(i.name)+(i.qty>1?' x'+i.qty:'')).join(', ')} - ${s.pay}${s.cur&&s.cur!==BC()?' - cobrado en '+curName(s.cur)+(s.fx?' (dólar '+fm(s.fx,'ARS')+')':''):''}</div></div><div class="text-right whitespace-nowrap"><div class="font-bold">${money(s.total)}</div><div class="text-xs text-[#0b7a64] font-semibold">+${money(s.profit)}</div>${undo?`<button class="text-xs text-red-600 font-semibold" onclick="anular('${s.id}')">Anular</button>`:''}</div></div>`;
 
 V.inv=()=>{const P=ui.inv==='phones';return head('Inventario',`<button class="btn btn-p" onclick="${P?'phoneForm()':'accForm()'}"><i data-lucide="plus"></i>${P?'Nuevo celular':'Nuevo accesorio'}</button>`)+
 `<div class="flex flex-wrap gap-2 mb-3"><div class="flex bg-white border rounded-lg p-0.5">${[['phones','Celulares'],['acc','Accesorios']].map(([k,l])=>`<button onclick="ui.inv='${k}';ui.q='';ui.st='';render()" class="px-3 py-1.5 rounded-md text-sm font-semibold ${ui.inv===k?'bg-[#3346d3] text-white':'text-slate-600'}">${l}</button>`).join('')}</div>
@@ -172,7 +176,7 @@ function phoneForm(id){
     fld('imei','IMEI (único)',p.imei,'text',{req:1,full:1,att:'inputmode="numeric"'})+
     fld('cap','Capacidad',p.cap,'text',{att:'placeholder="128GB"'})+fld('bat','Salud de batería (%)',p.bat,'number',{att:'max="100"'})+
     fld('color','Color',p.color)+fld('cond','Condición',p.cond,'select',{opts:COND})+
-    fld('cost','Precio de compra (costo)',p.cost,'number',{req:1})+fld('price','Precio de venta',p.price,'number',{req:1})+
+    fld('cost','Costo ('+BC()+')',p.cost,'number',{req:1})+fld('price','Precio de venta ('+BC()+')',p.price,'number',{req:1})+
     fld('supplier','Proveedor',p.supplier)+fld('date','Fecha de ingreso',p.date,'date')+
     fld('status','Estado',p.status,'select',{opts:ST,full:1}),
   ),d=>{
@@ -188,7 +192,7 @@ function accForm(id){
   modal(id?'Editar accesorio':'Nuevo accesorio',grid(
     fld('name','Nombre',a.name,'text',{req:1,full:1})+fld('cat','Categoría',a.cat,'text',{att:'placeholder="Fundas, cargadores..."'})+
     fld('stock','Stock actual',a.stock,'number',{req:1})+fld('min','Avisar cuando queden',a.min,'number',{req:1})+
-    fld('cost','Costo',a.cost,'number',{req:1})+fld('price','Precio de venta',a.price,'number')+`<label class="col-span-2 flex items-start gap-2 text-sm"><input type="checkbox" name="incl" value="1" ${a.incl?'checked':''} class="mt-1"><span><b>Se entrega con el celular</b> (no se vende). No cuenta como capital ni como valor de venta.</span></label>`,
+    fld('cost','Costo ('+BC()+')',a.cost,'number',{req:1})+fld('price','Precio de venta ('+BC()+')',a.price,'number')+`<label class="col-span-2 flex items-start gap-2 text-sm"><input type="checkbox" name="incl" value="1" ${a.incl?'checked':''} class="mt-1"><span><b>Se entrega con el celular</b> (no se vende). No cuenta como capital ni como valor de venta.</span></label>`,
   ),d=>{
     ['stock','min','cost','price'].forEach(k=>d[k]=+d[k]);d.incl=d.incl==='1';
     if(id)Object.assign(a,d);else db.acc.push({id:uid(),...d});
@@ -221,7 +225,7 @@ function cliHist(id){
   modal('Compras de '+esc(c.name),vs.length?vs.map(s=>saleRow(s)).join(''):'<p class="text-sm text-slate-500">Este cliente todavía no realizó compras.</p>');
 }
 
-V.pos=()=>head('Nueva venta')+`<div class="grid lg:grid-cols-5 gap-4">
+V.pos=()=>head('Nueva venta',`<button class="btn" onclick="fxForm()"><i data-lucide="dollar-sign"></i>${FX()?'Dólar '+fm(FX(),'ARS'):'Cargar dólar'}</button>`)+`<div class="grid lg:grid-cols-5 gap-4">
 <div class="lg:col-span-3 space-y-3">
 <div class="card p-4"><div class="text-xs font-semibold text-slate-500 mb-1">Cliente</div><div class="flex gap-2"><input id="cin" list="cl" class="inp" placeholder="Buscar por nombre o DNI (vacío = consumidor final)" value="${esc(ui.cin)}" oninput="pickCli(this.value)"><button class="btn" title="Cliente nuevo" onclick="cliForm('',1)"><i data-lucide="user-plus"></i></button></div><datalist id="cl">${db.clients.map(c=>`<option value="${esc(cl(c))}">`).join('')}</datalist></div>
 <div class="card p-4"><div class="text-xs font-semibold text-slate-500 mb-1">Producto (escaneá o escribí el IMEI, modelo o accesorio)</div><input class="inp" placeholder="Buscar producto" value="${esc(ui.sq)}" oninput="ui.sq=this.value;posRes()" onkeydown="if(event.key==='Enter')scan()"><div id="res" class="mt-2"></div></div></div>
@@ -249,10 +253,12 @@ function qty(i,d){const c=ui.cart[i];if(c.t==='p')return;const a=db.acc.find(x=>
 function setPr(i,v){ui.cart[i].price=Math.max(0,+v||0);posCart()}
 function posCart(){
   const {total,profit}=totals();
-  const pd=ui.paid===''?total:Math.min(total,Math.max(0,+ui.paid||0));
+  const {cur,fx,conv,pd,toPay}=payCalc(total);
   setH('#cart',`<h2 class="font-bold mb-2">Carrito</h2>${ui.cart.length?ui.cart.map((c,i)=>`<div class="py-2.5 border-t first:border-0"><div class="flex justify-between gap-2 text-sm"><span class="font-semibold">${esc(c.name)}</span><button class="btn-i !p-1" onclick="ui.cart.splice(${i},1);posRes();posCart()"><i data-lucide="x"></i></button></div><div class="flex items-center gap-2 mt-1.5">${c.t==='a'?`<button class="btn !px-2 !py-0.5" onclick="qty(${i},-1)">-</button><b class="text-sm w-5 text-center">${c.qty}</b><button class="btn !px-2 !py-0.5" onclick="qty(${i},1)">+</button>`:''}<span class="text-xs text-slate-500 ml-auto">Precio</span><input type="number" min="0" class="inp !w-28 !py-1" ${c.incl?'disabled':''} value="${c.price}" onchange="setPr(${i},this.value)"></div></div>`).join(''):'<p class="text-sm text-slate-500 py-4">Buscá un producto para agregarlo a la venta.</p>'}
   <div class="border-t mt-2 pt-3 space-y-2"><label class="block text-xs font-semibold text-slate-500">Método de pago<select class="inp mt-1" onchange="ui.pay=this.value">${PAY.map(p=>`<option ${ui.pay===p?'selected':''}>${p}</option>`).join('')}</select></label>
-  <label class="block text-xs font-semibold text-slate-500">Cobrado ahora (vacío = cobrás todo)<input type="number" min="0" class="inp mt-1" value="${ui.paid}" onchange="ui.paid=this.value;posCart()"></label>
+  <div class="grid grid-cols-2 gap-2"><label class="block text-xs font-semibold text-slate-500">Te pagan en<select class="inp mt-1" onchange="ui.cur=this.value;posCart()"><option value="USD" ${cur==='USD'?'selected':''}>Dólares</option><option value="ARS" ${cur==='ARS'?'selected':''}>Pesos</option></select></label>${conv?`<label class="block text-xs font-semibold text-slate-500">Dólar de esta venta<input type="number" min="0" class="inp mt-1" value="${fx||''}" onchange="ui.fxs=this.value;posCart()"></label>`:''}</div>
+  ${conv&&!fx?'<p class="text-xs text-red-600 font-semibold">Cargá la cotización del dólar para convertir.</p>':''}${conv&&fx?`<div class="flex justify-between text-sm"><span>Total a cobrar</span><b>${fm(toPay,cur)}</b></div>`:''}
+  <label class="block text-xs font-semibold text-slate-500">Cobrado ahora en ${curName(cur)} (vacío = cobrás todo)<input type="number" min="0" class="inp mt-1" value="${ui.paid}" onchange="ui.paid=this.value;posCart()"></label>
   ${pd<total?`<div class="grid grid-cols-2 gap-2"><label class="block text-xs font-semibold text-slate-500">Cuotas<input type="number" min="1" class="inp mt-1" value="${ui.cuo}" onchange="ui.cuo=this.value"></label><label class="block text-xs font-semibold text-slate-500">Próximo vencimiento<input type="date" class="inp mt-1" value="${ui.venc}" onchange="ui.venc=this.value"></label></div><div class="flex justify-between text-sm"><span>Queda debiendo</span><b>${money(total-pd)}</b></div>`:''}
   <div class="flex justify-between text-sm"><span>Ganancia neta</span><b class="${profit<0?'text-red-600':'text-[#0b7a64]'}">${money(profit)}</b></div>
   <div class="flex justify-between text-lg font-extrabold"><span>Total</span><span>${money(total)}</span></div>
@@ -266,13 +272,14 @@ function confirmSale(){
     else{const a=db.acc.find(x=>x.id===c.id);if(!a||a.stock<c.qty)return toast('Stock insuficiente: '+c.name,'err')}
   }
   const {total,profit}=totals(),cli=db.clients.find(x=>x.id===ui.cid);
-  const pd=ui.paid===''?total:Math.min(total,Math.max(0,+ui.paid||0));
+  const pc=payCalc(total),pd=pc.pd;
+  if(pc.conv&&!pc.fx)return toast('Cargá la cotización del dólar','err');
   if(pd<total&&!cli)return toast('Para dejar saldo pendiente elegí un cliente','err');
   ui.cart.forEach(c=>{if(c.t==='p')db.phones.find(x=>x.id===c.id).status='Vendido';else db.acc.find(x=>x.id===c.id).stock-=c.qty});
   const sid=uid();
-  db.sales.unshift({id:sid,date:today(),cid:ui.cid,cname:cli?cli.name:'Consumidor final',items:ui.cart.map(c=>({...c})),pay:ui.pay,total,profit,paid:pd});
+  db.sales.unshift({id:sid,date:today(),cid:ui.cid,cname:cli?cli.name:'Consumidor final',items:ui.cart.map(c=>({...c})),pay:ui.pay,total,profit,paid:pd,cur:pc.cur,fx:pc.conv?pc.fx:0});
   if(pd<total)db.debts.push({id:uid(),kind:'cobrar',party:cli.name,cid:cli.id,sid,desc:'Venta del '+fdate(today()),total:total-pd,cuotas:+ui.cuo||'',venc:ui.venc,date:today(),pays:[]});
-  save();ui.cart=[];ui.cid='';ui.cin='';ui.sq='';ui.paid='';ui.cuo='';ui.venc='';render();toast('Venta registrada');
+  save();ui.cart=[];ui.cid='';ui.cin='';ui.sq='';ui.paid='';ui.cuo='';ui.venc='';ui.fxs='';render();toast('Venta registrada');
 }
 function anular(id){
   if(!confirm('¿Anular esta venta? Los equipos vuelven a Disponible y los accesorios recuperan su stock.'))return;
@@ -290,7 +297,13 @@ function cfgForm(){
 }
 function pickLogo(i){const f=i.files[0];if(!f)return;const im=new Image();im.onload=()=>{const k=Math.min(1,160/Math.max(im.width,im.height)),cv=document.createElement('canvas');cv.width=Math.round(im.width*k);cv.height=Math.round(im.height*k);cv.getContext('2d').drawImage(im,0,0,cv.width,cv.height);const u=cv.toDataURL('image/png');document.querySelector('[name=logo]').value=u;$('#lp').src=u;$('#lp').classList.remove('hidden')};im.src=URL.createObjectURL(f)}
 function ajusteForm(){
-  modal('Plata para invertir',`<p class="text-sm text-slate-600 mb-3">Poné cuánta plata tenés hoy disponible (efectivo, banco y USDT). Desde ese número la app suma lo que ganás y lo que cobrás, y resta el stock que comprás, lo que pagás a proveedores y tus gastos y retiros. Podés volver a ajustarla cuando quieras.</p>${fld('amt','Plata disponible hoy',Math.round(caja()),'number',{req:1})}`,d=>{CFG().ajuste=+d.amt-cajaBase();save();closeM();render();toast('Plata ajustada')});
+  const c=Math.round(caja()*100)/100,bU=BC()==='USD';
+  modal('Plata para invertir',`<p class="text-sm text-slate-600 mb-3">Poné cuánta plata tenés hoy, separada por moneda (efectivo, banco y USDT). La app las suma al dólar de hoy y desde ahí va actualizando el total con tus ganancias, cobros, compras de stock, pagos a proveedores, gastos y retiros. Podés volver a ajustarla cuando quieras.</p>`+grid(fld('usd','Dólares (incluye USDT)',bU?c:0,'number')+fld('ars','Pesos',bU?0:Math.round(c),'number')),d=>{
+    const u=+d.usd||0,p=+d.ars||0,main=bU?u:p,other=bU?p:u;
+    if(other&&!FX())return toast('Cargá primero la cotización del dólar','err');
+    CFG().ajuste=main+(other?toBase(other,OC(),FX()):0)-cajaBase();
+    save();closeM();render();toast('Plata ajustada');
+  });
 }
 V.fin=()=>head('Deudas',`<button class="btn" onclick="moveForm()"><i data-lucide="minus-circle"></i>Gasto o retiro</button>`)+
   `<div class="grid lg:grid-cols-2 gap-4">${debtCol('cobrar','Me deben','Clientes que pagan en cuotas o con saldo')}${debtCol('pagar','Debo a proveedores','Lo que todavía tenés que pagar')}</div>${movesHtml()}`;
@@ -314,7 +327,7 @@ function debtForm(k,id){
   modal((id?'Editar ':'Nueva ')+(C?'cuenta a cobrar':'deuda con proveedor'),grid(
     `<label class="block col-span-2"><span class="text-slate-500 text-xs font-semibold">${C?'Cliente':'Proveedor'}</span><input name="party" list="dl" value="${esc(d.party)}" required class="inp mt-1"><datalist id="dl">${names.map(n=>`<option value="${esc(n)}">`).join('')}</datalist></label>`+
     fld('desc','Detalle',d.desc,'text',{full:1,att:'placeholder="iPhone 13 Pro en cuotas"'})+
-    fld('total','Monto total',d.total,'number',{req:1})+fld('cuotas','Cantidad de cuotas',d.cuotas,'number')+
+    fld('total','Monto total ('+BC()+')',d.total,'number',{req:1})+fld('cuotas','Cantidad de cuotas',d.cuotas,'number')+
     fld('venc','Próximo vencimiento',d.venc,'date')+fld('date','Fecha',d.date,'date')),x=>{
     x.total=+x.total;x.cuotas=x.cuotas===''?'':+x.cuotas;
     if(C)x.cid=(db.clients.find(c=>c.name===x.party)||{}).id||'';
@@ -323,21 +336,62 @@ function debtForm(k,id){
   });
 }
 function payForm(id){
-  const d=db.debts.find(x=>x.id===id),s=saldo(d),cq=+d.cuotas>0?Math.round(d.total/d.cuotas):0;
-  modal((d.kind==='cobrar'?'Cobro de ':'Pago a ')+esc(d.party),`<p class="text-sm text-slate-500 mb-3">Saldo pendiente: <b>${money(s)}</b></p>`+grid(fld('amount','Monto',Math.round(cq?Math.min(s,cq):s),'number',{req:1})+fld('date','Fecha',today(),'date')+fld('venc','Próximo vencimiento',d.venc,'date',{full:1})),x=>{
-    const a=+x.amount;
+  const d=db.debts.find(x=>x.id===id),s=saldo(d),cq=+d.cuotas>0?d.total/d.cuotas:0,C=d.kind==='cobrar';
+  const sug=Math.round((cq?Math.min(s,cq):s)*100)/100;
+  modal((C?'Cobro de ':'Pago a ')+esc(d.party),`<p class="text-sm text-slate-500 mb-3">Saldo pendiente: <b>${money(s)}</b>${FX()?' ('+fm(fromBase(s,OC(),FX()),OC())+')':''}. El monto va en la moneda que elijas.</p>`+grid(
+    fld('amount',C?'Monto que te pagan':'Monto que pagás',sug,'number',{req:1})+fld('cur','Moneda',BC(),'select',{opts:['USD','ARS']})+
+    fld('fx','Dólar de este pago (pesos)',FX()||'','number')+fld('date','Fecha',today(),'date')+fld('venc','Próximo vencimiento',d.venc,'date',{full:1})),x=>{
+    const cur=x.cur,fx=+x.fx;let a=+x.amount;
     if(!(a>0))return toast('Poné un monto mayor a 0','err');
+    if(cur!==BC()){if(!fx)return toast('Poné la cotización del dólar','err');a=toBase(a,cur,fx)}
     if(a>s+0.5)return toast('El monto supera el saldo pendiente','err');
-    (d.pays=d.pays||[]).push({date:x.date,amount:a});d.venc=x.venc;save();closeM();render();toast('Registrado');
+    (d.pays=d.pays||[]).push({date:x.date,amount:a,raw:+x.amount,cur,fx:cur!==BC()?fx:0});d.venc=x.venc;save();closeM();render();toast('Registrado');
   });
 }
-function payHist(id){const d=db.debts.find(x=>x.id===id);modal('Pagos de '+esc(d.party),(d.pays||[]).length?d.pays.map((p,i)=>`<div class="flex justify-between items-center py-2 border-t first:border-0 text-sm"><span>${fdate(p.date)}</span><span class="font-semibold">${money(p.amount)}</span><button class="btn-i" onclick="delPay('${id}',${i})"><i data-lucide="trash-2"></i></button></div>`).join(''):'<p class="text-sm text-slate-500">Todavía no hay pagos registrados.</p>')}
+function payHist(id){const d=db.debts.find(x=>x.id===id);modal('Pagos de '+esc(d.party),(d.pays||[]).length?d.pays.map((p,i)=>`<div class="flex justify-between items-center py-2 border-t first:border-0 text-sm"><span>${fdate(p.date)}</span><span class="font-semibold">${money(p.amount)}${p.cur&&p.cur!==BC()?` <span class="text-xs text-slate-400 font-normal">(${fm(p.raw,p.cur)} a ${fm(p.fx,'ARS')})</span>`:''}</span><button class="btn-i" onclick="delPay('${id}',${i})"><i data-lucide="trash-2"></i></button></div>`).join(''):'<p class="text-sm text-slate-500">Todavía no hay pagos registrados.</p>')}
 function delPay(id,i){if(!confirm('¿Quitar este pago?'))return;db.debts.find(x=>x.id===id).pays.splice(i,1);save();closeM();render()}
 function movesHtml(){
   const m=[...db.moves].sort((a,b)=>(b.date||'').localeCompare(a.date||''));
-  return `<h2 class="font-bold text-lg mt-8 mb-2">Gastos y retiros</h2><div class="card px-4">${m.length?m.slice(0,15).map(x=>`<div class="flex justify-between items-center py-2.5 border-t first:border-0 text-sm"><div><div class="font-semibold">${esc(x.concept)}</div><div class="text-xs text-slate-500">${fdate(x.date)}</div></div><div class="flex items-center gap-2 font-bold">${money(x.amount)}<button class="btn-i" onclick="del('moves','${x.id}')"><i data-lucide="trash-2"></i></button></div></div>`).join(''):'<p class="text-sm text-slate-500 py-4">Acá anotás lo que sacás del negocio: alquiler, sueldos, retiros personales. Se restan de la plata para invertir.</p>'}</div>`;
+  return `<h2 class="font-bold text-lg mt-8 mb-2">Gastos y retiros</h2><div class="card px-4">${m.length?m.slice(0,15).map(x=>`<div class="flex justify-between items-center py-2.5 border-t first:border-0 text-sm"><div><div class="font-semibold">${esc(x.concept)}</div><div class="text-xs text-slate-500">${fdate(x.date)}${x.cur&&x.cur!==BC()?' - '+fm(x.raw,x.cur)+' a '+fm(x.fx,'ARS'):''}</div></div><div class="flex items-center gap-2 font-bold">${money(x.amount)}<button class="btn-i" onclick="del('moves','${x.id}')"><i data-lucide="trash-2"></i></button></div></div>`).join(''):'<p class="text-sm text-slate-500 py-4">Acá anotás lo que sacás del negocio: alquiler, sueldos, retiros personales. Se restan de la plata para invertir.</p>'}</div>`;
 }
-function moveForm(){modal('Gasto o retiro',grid(fld('concept','Concepto','','text',{req:1,full:1})+fld('amount','Monto','','number',{req:1})+fld('date','Fecha',today(),'date')),d=>{db.moves.push({id:uid(),concept:d.concept,amount:+d.amount,date:d.date});save();closeM();render();toast('Guardado')})}
+function moveForm(){modal('Gasto o retiro',grid(fld('concept','Concepto','','text',{req:1,full:1})+fld('amount','Monto','','number',{req:1})+fld('cur','Moneda',BC(),'select',{opts:['USD','ARS']})+fld('fx','Dólar (pesos)',FX()||'','number')+fld('date','Fecha',today(),'date',{full:1})),d=>{
+  let a=+d.amount,fx=+d.fx;
+  if(d.cur!==BC()){if(!fx)return toast('Poné la cotización del dólar','err');a=toBase(a,d.cur,fx)}
+  db.moves.push({id:uid(),concept:d.concept,amount:a,raw:+d.amount,cur:d.cur,fx:d.cur!==BC()?fx:0,date:d.date});save();closeM();render();toast('Guardado');
+})}
+
+function payCalc(total){
+  const cur=ui.cur||BC(),fx=+ui.fxs||FX(),conv=cur!==BC(),raw=ui.paid===''?null:Math.max(0,+ui.paid||0);
+  const pd=raw===null?total:Math.min(total,conv?toBase(raw,cur,fx||1):raw);
+  return {cur,fx,conv,raw,pd,toPay:conv&&fx?fromBase(total,cur,fx):total};
+}
+function fxForm(){
+  const c=CFG();
+  modal('Cotización del dólar',`<p class="text-sm text-slate-600 mb-3">Cuántos pesos vale 1 dólar hoy. Se usa para convertir lo que te pagan en pesos o en dólares y para mostrar la plata para invertir en las dos monedas. En cada venta, cobro o gasto podés poner otra cotización si ese día fue distinta.</p>`+grid(
+    fld('fx','Pesos por 1 dólar',c.fx||'','number',{req:1,full:1})+fld('base','Cargo precios y costos en',BC(),'select',{opts:['USD','ARS'],full:1}))+
+    `<div class="flex flex-wrap gap-2 mt-3"><button type="button" class="btn" onclick="traerDolar('blue')">Traer dólar blue</button><button type="button" class="btn" onclick="traerDolar('oficial')">Traer dólar oficial</button></div><p class="text-xs text-slate-400 mt-3">Cambiá la moneda de los precios solo al empezar: los montos que ya cargaste no se convierten.</p>`,d=>{
+    Object.assign(CFG(),{fx:+d.fx,base:d.base,fxDate:today()});save();closeM();render();toast('Cotización guardada');
+  });
+}
+async function traerDolar(t){
+  try{const r=await fetch('https://dolarapi.com/v1/dolares/'+t),j=await r.json(),v=j.venta||j.compra;if(!v)throw 0;document.querySelector('[name=fx]').value=v;toast('Dólar '+t+': $ '+v)}
+  catch(e){toast('No pude traer la cotización. Cargala a mano.','err')}
+}
+function gananciaInfo(){
+  const S=db.sales,tv=sum(S,x=>x.total),tg=sum(S,x=>x.profit),tc=tv-tg;
+  const box=(l,v,c='')=>`<div class="card p-2.5"><div class="text-[11px] text-slate-500">${l}</div><div class="font-extrabold text-sm ${c}">${v}</div></div>`;
+  const row=x=>`<div class="py-2.5 border-t first:border-0 text-sm"><div class="flex justify-between gap-2"><div class="font-semibold">${esc(x.cname)} <span class="text-slate-400 font-normal">${fdate(x.date)}</span></div><div class="font-bold text-[#0b7a64] whitespace-nowrap">+${money(x.profit)}</div></div>${x.items.map(i=>`<div class="text-xs text-slate-500 flex justify-between gap-2"><span>${esc(i.name)}${i.qty>1?' x'+i.qty:''}</span><span class="whitespace-nowrap">${money(i.price*i.qty)} - ${money(i.cost*i.qty)} = ${money((i.price-i.cost)*i.qty)}</span></div>`).join('')}</div>`;
+  modal('¿De dónde sale la ganancia?',`<p class="text-sm text-slate-600 mb-3">En cada venta, la ganancia es lo que cobraste menos lo que te costó cada producto. La ganancia acumulada es la suma de todas las ventas.</p>
+  <div class="grid grid-cols-3 gap-2 mb-1">${box('Vendiste',money(tv))}${box('Te costó',money(tc))}${box('Ganancia',money(tg),'text-[#0b7a64]')}</div>
+  ${FX()?`<p class="text-xs text-slate-500 mb-3">Equivale a ${fm(fromBase(tg,OC(),FX()),OC())} al dólar de hoy.</p>`:'<div class="mb-3"></div>'}
+  ${S.length?S.map(row).join(''):'<p class="text-sm text-slate-500">Todavía no hay ventas registradas.</p>'}
+  <p class="text-xs text-slate-400 mt-3">Cada línea muestra precio de venta - costo = ganancia. La ganancia se cuenta completa el día de la venta, aunque la cobres en cuotas. Los accesorios que entregás gratis con el celular suman su costo y por eso restan. Al anular una venta, desaparece de este cálculo.</p>`);
+}
+
+function lowInfo(){
+  const low=db.acc.filter(x=>x.stock<=x.min).sort((a,b)=>a.stock-b.stock);
+  modal('Stock bajo',low.length?`<p class="text-sm text-slate-600 mb-2">Estos accesorios llegaron a su stock mínimo:</p>`+low.map(x=>`<div class="flex justify-between items-center gap-3 py-2.5 border-t first:border-0 text-sm"><div><div class="font-semibold">${esc(x.name)}${x.incl?' <span class="chip" style="background:#e6e9fb;color:#3346d3">Se entrega</span>':''}</div><div class="text-xs text-slate-500">${esc(x.cat)}</div></div><span class="chip whitespace-nowrap" style="background:#fde2e2;color:#a11d1d">${x.stock<=0?'Sin stock':'Quedan '+x.stock+' (mín. '+x.min+')'}</span></div>`).join('')+`<div class="mt-4 text-right"><button type="button" class="btn btn-p" onclick="ui.inv='acc';ui.q='';closeM();go('inv')">Ir a accesorios</button></div>`:'<p class="text-sm text-slate-500">Todos los accesorios tienen stock suficiente.</p>');
+}
 
 /* ---------- COPIA DE SEGURIDAD ---------- */
 function exportDb(){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(db,null,1)],{type:'application/json'}));a.download='respaldo-'+today()+'.json';a.click()}
