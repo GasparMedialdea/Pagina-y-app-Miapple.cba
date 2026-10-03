@@ -85,7 +85,7 @@ function startSync(){
     if(fromCache)return;
     if(!ready){
       init[col]=recs;if(COLS.some(k=>!init[k]))return;
-      ready=true;cloud=c;
+      ready=true;cloud=c;setTimeout(()=>autoFx(),1500);
       if(COLS.every(k=>!init[k].length)){push();setSync('Sincronizado',1);return}
       COLS.forEach(k=>apply(k,init[k]));
     }else if(!apply(col,recs))return;
@@ -98,7 +98,8 @@ async function salir(){if(!confirm('¿Cerrar sesión? Se borran los datos guarda
 let booted=false;
 function boot(){
   if(booted)return;booted=true;lucide.createIcons();
-  if(!window.cloudAPI){render();return}
+  setInterval(()=>autoFx(),6e5);document.addEventListener('visibilitychange',()=>{if(!document.hidden)autoFx()});
+  if(!window.cloudAPI){render();autoFx();return}
   cloudAPI.onAuth(u=>{if(u){$('#login').classList.add('hidden');render();startSync()}else $('#login').classList.remove('hidden')});
 }
 setSync('Guardado en este dispositivo',0);
@@ -136,7 +137,7 @@ V.dash=()=>{
   const low=db.acc.filter(x=>x.stock<=x.min);
   const vencidas=pend('cobrar').filter(d=>d.venc&&d.venc<today()).length;
   const card=(l,v,s,ic,c='')=>`<div class="card p-4 ${c}"><div class="flex justify-between text-sm font-semibold opacity-75">${l}<i data-lucide="${ic}"></i></div><div class="text-2xl font-extrabold mt-2">${v}</div><div class="text-xs opacity-75 mt-1">${s}</div></div>`;
-  return head('Resumen',`<button class="btn" onclick="fxForm()"><i data-lucide="dollar-sign"></i>${FX()?'Dólar '+fm(FX(),'ARS'):'Cargar dólar'}</button><button class="btn" onclick="cfgForm()"><i data-lucide="settings"></i>Ajustes</button><button class="btn" onclick="exportDb()"><i data-lucide="download"></i>Exportar copia</button><label class="btn cursor-pointer"><i data-lucide="upload"></i>Importar<input type="file" accept=".json" class="hidden" onchange="importDb(this)"></label>${window.cloudAPI?'<button class="btn" onclick="salir()">Salir</button>':''}`)+
+  return head('Resumen',`<button class="btn" onclick="fxForm()"><i data-lucide="dollar-sign"></i>${fxLabel()}</button><button class="btn" onclick="cfgForm()"><i data-lucide="settings"></i>Ajustes</button><button class="btn" onclick="exportDb()"><i data-lucide="download"></i>Exportar copia</button><label class="btn cursor-pointer"><i data-lucide="upload"></i>Importar<input type="file" accept=".json" class="hidden" onchange="importDb(this)"></label>${window.cloudAPI?'<button class="btn" onclick="salir()">Salir</button>':''}`)+
   `<div class="grid grid-cols-2 xl:grid-cols-4 gap-3">`+
   card('Capital en stock',money(cap),`${ph.length} celulares y ${nAcc} accesorios`,'wallet')+
   card('Valor de venta estimado',money(est),'Ganancia potencial: '+money(est-cap),'tag')+
@@ -225,7 +226,7 @@ function cliHist(id){
   modal('Compras de '+esc(c.name),vs.length?vs.map(s=>saleRow(s)).join(''):'<p class="text-sm text-slate-500">Este cliente todavía no realizó compras.</p>');
 }
 
-V.pos=()=>head('Nueva venta',`<button class="btn" onclick="fxForm()"><i data-lucide="dollar-sign"></i>${FX()?'Dólar '+fm(FX(),'ARS'):'Cargar dólar'}</button>`)+`<div class="grid lg:grid-cols-5 gap-4">
+V.pos=()=>head('Nueva venta',`<button class="btn" onclick="fxForm()"><i data-lucide="dollar-sign"></i>${fxLabel()}</button>`)+`<div class="grid lg:grid-cols-5 gap-4">
 <div class="lg:col-span-3 space-y-3">
 <div class="card p-4"><div class="text-xs font-semibold text-slate-500 mb-1">Cliente</div><div class="flex gap-2"><input id="cin" list="cl" class="inp" placeholder="Buscar por nombre o DNI (vacío = consumidor final)" value="${esc(ui.cin)}" oninput="pickCli(this.value)"><button class="btn" title="Cliente nuevo" onclick="cliForm('',1)"><i data-lucide="user-plus"></i></button></div><datalist id="cl">${db.clients.map(c=>`<option value="${esc(cl(c))}">`).join('')}</datalist></div>
 <div class="card p-4"><div class="text-xs font-semibold text-slate-500 mb-1">Producto (escaneá o escribí el IMEI, modelo o accesorio)</div><input class="inp" placeholder="Buscar producto" value="${esc(ui.sq)}" oninput="ui.sq=this.value;posRes()" onkeydown="if(event.key==='Enter')scan()"><div id="res" class="mt-2"></div></div></div>
@@ -365,16 +366,40 @@ function payCalc(total){
   const pd=raw===null?total:Math.min(total,conv?toBase(raw,cur,fx||1):raw);
   return {cur,fx,conv,raw,pd,toPay:conv&&fx?fromBase(total,cur,fx):total};
 }
+const fxLabel=()=>FX()?'Dólar '+fm(FX(),'ARS')+(CFG().fxAuto?' - auto':''):'Cargar dólar';
+function softRender(){if(!$('#modal').innerHTML&&!/INPUT|SELECT/.test(document.activeElement.tagName))render()}
+async function getFx(t,side,adj){
+  const r=await fetch('https://dolarapi.com/v1/dolares/'+t),j=await r.json(),v=+j[side]||+j.venta;
+  if(!v)throw 0;return Math.round((v+adj)*100)/100;
+}
+async function autoFx(force){
+  const c=CFG();if(!c.fxAuto)return;
+  if(!force&&Date.now()-(c.fxAt||0)<6e5)return;
+  try{
+    const n=await getFx(c.fxType||'blue',c.fxSide||'venta',+c.fxAdj||0);
+    c.fxAt=Date.now();
+    if(n!==c.fx){c.fx=n;c.fxDate=today();save();softRender()}
+  }catch(e){}
+}
 function fxForm(){
-  const c=CFG();
-  modal('Cotización del dólar',`<p class="text-sm text-slate-600 mb-3">Cuántos pesos vale 1 dólar hoy. Se usa para convertir lo que te pagan en pesos o en dólares y para mostrar la plata para invertir en las dos monedas. En cada venta, cobro o gasto podés poner otra cotización si ese día fue distinta.</p>`+grid(
-    fld('fx','Pesos por 1 dólar',c.fx||'','number',{req:1,full:1})+fld('base','Cargo precios y costos en',BC(),'select',{opts:['USD','ARS'],full:1}))+
-    `<div class="flex flex-wrap gap-2 mt-3"><button type="button" class="btn" onclick="traerDolar('blue')">Traer dólar blue</button><button type="button" class="btn" onclick="traerDolar('oficial')">Traer dólar oficial</button></div><p class="text-xs text-slate-400 mt-3">Cambiá la moneda de los precios solo al empezar: los montos que ya cargaste no se convierten.</p>`,d=>{
-    Object.assign(CFG(),{fx:+d.fx,base:d.base,fxDate:today()});save();closeM();render();toast('Cotización guardada');
+  const c=CFG(),op=(v,l,cur)=>`<option value="${v}" ${cur===v?'selected':''}>${l}</option>`,ty=c.fxType||'blue',sd=c.fxSide||'venta';
+  modal('Cotización del dólar',`<p class="text-sm text-slate-600 mb-3">Cuántos pesos vale 1 dólar. Se usa para convertir lo que te pagan en pesos o en dólares y para mostrar la plata para invertir en las dos monedas. En cada venta, cobro o gasto podés poner otra cotización si ese día fue distinta.</p>`+grid(
+    fld('fx','Pesos por 1 dólar',c.fx||'','number',{full:1})+
+    `<label class="col-span-2 flex items-start gap-2 text-sm"><input type="checkbox" name="auto" value="1" ${c.fxAuto?'checked':''} class="mt-1"><span><b>Actualizar solo</b> con la cotización de internet, cada vez que abrís la app y cada 10 minutos.</span></label>`+
+    `<label class="block"><span class="text-slate-500 text-xs font-semibold">Dólar</span><select name="ftype" class="inp mt-1">${op('blue','Blue',ty)}${op('oficial','Oficial',ty)}${op('bolsa','MEP',ty)}${op('contadoconliqui','CCL',ty)}</select></label>`+
+    `<label class="block"><span class="text-slate-500 text-xs font-semibold">Precio</span><select name="fside" class="inp mt-1">${op('venta','Venta',sd)}${op('compra','Compra',sd)}</select></label>`+
+    `<label class="block col-span-2"><span class="text-slate-500 text-xs font-semibold">Ajuste en pesos para tu zona (+ o -)</span><input name="adj" type="number" step="any" value="${c.fxAdj||0}" class="inp mt-1"></label>`+
+    fld('base','Cargo precios y costos en',BC(),'select',{opts:['USD','ARS'],full:1}))+
+    `<div class="mt-3"><button type="button" class="btn" onclick="traerDolar()">Probar ahora</button></div><p class="text-xs text-slate-400 mt-3">La cotización automática es la nacional. Si el blue de Córdoba suele estar unos pesos arriba o abajo, ponelo en el ajuste. Cambiá la moneda de los precios solo al empezar: los montos que ya cargaste no se convierten.</p>`,d=>{
+    const auto=d.auto==='1';
+    if(!auto&&!(+d.fx>0))return toast('Poné cuántos pesos vale el dólar','err');
+    Object.assign(CFG(),{fx:+d.fx||c.fx||0,base:d.base,fxDate:today(),fxAuto:auto,fxType:d.ftype,fxSide:d.fside,fxAdj:+d.adj||0,fxAt:0});
+    save();closeM();render();toast('Cotización guardada');if(auto)autoFx(true);
   });
 }
-async function traerDolar(t){
-  try{const r=await fetch('https://dolarapi.com/v1/dolares/'+t),j=await r.json(),v=j.venta||j.compra;if(!v)throw 0;document.querySelector('[name=fx]').value=v;toast('Dólar '+t+': $ '+v)}
+async function traerDolar(){
+  const q=n=>document.querySelector('[name='+n+']');
+  try{const v=await getFx(q('ftype').value,q('fside').value,+q('adj').value||0);q('fx').value=v;toast('Dólar: $ '+v)}
   catch(e){toast('No pude traer la cotización. Cargala a mano.','err')}
 }
 function gananciaInfo(){
