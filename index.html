@@ -368,39 +368,45 @@ function payCalc(total){
 }
 const fxLabel=()=>FX()?'Dólar '+fm(FX(),'ARS')+(CFG().fxAuto?' - auto':''):'Cargar dólar';
 function softRender(){if(!$('#modal').innerHTML&&!/INPUT|SELECT/.test(document.activeElement.tagName))render()}
-async function getFx(t,side,adj){
-  const r=await fetch('https://dolarapi.com/v1/dolares/'+t),j=await r.json(),v=+j[side]||+j.venta;
-  if(!v)throw 0;return Math.round((v+adj)*100)/100;
+async function getFx(o){
+  const url=o.src==='infodolar'?o.url:'https://dolarapi.com/v1/dolares/'+o.type;
+  if(!url)throw 0;
+  const j=await (await fetch(url)).json(),v=+j[o.side]||+j.venta;
+  if(!v)throw 0;return Math.round((v+o.adj)*100)/100;
 }
+const fxOpts=c=>({src:c.fxSrc||'dolarapi',url:(c.fxUrl||'').trim(),type:c.fxType||'blue',side:c.fxSide||'venta',adj:+c.fxAdj||0});
 async function autoFx(force){
   const c=CFG();if(!c.fxAuto)return;
   if(!force&&Date.now()-(c.fxAt||0)<6e5)return;
   try{
-    const n=await getFx(c.fxType||'blue',c.fxSide||'venta',+c.fxAdj||0);
+    const n=await getFx(fxOpts(c));
     c.fxAt=Date.now();
     if(n!==c.fx){c.fx=n;c.fxDate=today();save();softRender()}
   }catch(e){}
 }
 function fxForm(){
-  const c=CFG(),op=(v,l,cur)=>`<option value="${v}" ${cur===v?'selected':''}>${l}</option>`,ty=c.fxType||'blue',sd=c.fxSide||'venta';
+  const c=CFG(),op=(v,l,cur)=>`<option value="${v}" ${cur===v?'selected':''}>${l}</option>`,o=fxOpts(c);
   modal('Cotización del dólar',`<p class="text-sm text-slate-600 mb-3">Cuántos pesos vale 1 dólar. Se usa para convertir lo que te pagan en pesos o en dólares y para mostrar la plata para invertir en las dos monedas. En cada venta, cobro o gasto podés poner otra cotización si ese día fue distinta.</p>`+grid(
     fld('fx','Pesos por 1 dólar',c.fx||'','number',{full:1})+
-    `<label class="col-span-2 flex items-start gap-2 text-sm"><input type="checkbox" name="auto" value="1" ${c.fxAuto?'checked':''} class="mt-1"><span><b>Actualizar solo</b> con la cotización de internet, cada vez que abrís la app y cada 10 minutos.</span></label>`+
-    `<label class="block"><span class="text-slate-500 text-xs font-semibold">Dólar</span><select name="ftype" class="inp mt-1">${op('blue','Blue',ty)}${op('oficial','Oficial',ty)}${op('bolsa','MEP',ty)}${op('contadoconliqui','CCL',ty)}</select></label>`+
-    `<label class="block"><span class="text-slate-500 text-xs font-semibold">Precio</span><select name="fside" class="inp mt-1">${op('venta','Venta',sd)}${op('compra','Compra',sd)}</select></label>`+
-    `<label class="block col-span-2"><span class="text-slate-500 text-xs font-semibold">Ajuste en pesos para tu zona (+ o -)</span><input name="adj" type="number" step="any" value="${c.fxAdj||0}" class="inp mt-1"></label>`+
+    `<label class="col-span-2 flex items-start gap-2 text-sm"><input type="checkbox" name="auto" value="1" ${c.fxAuto?'checked':''} class="mt-1"><span><b>Actualizar solo</b>, cada vez que abrís la app y cada 10 minutos.</span></label>`+
+    `<label class="block col-span-2"><span class="text-slate-500 text-xs font-semibold">Fuente</span><select name="fsrc" class="inp mt-1">${op('infodolar','InfoDolar: Dólar Blue en Córdoba',o.src)}${op('dolarapi','DolarApi: dólar nacional',o.src)}</select></label>`+
+    `<label class="block col-span-2"><span class="text-slate-500 text-xs font-semibold">Dirección del Worker (solo para InfoDolar)</span><input name="furl" type="url" value="${esc(c.fxUrl||'')}" placeholder="https://dolar-cordoba.tuusuario.workers.dev" class="inp mt-1"></label>`+
+    `<label class="block"><span class="text-slate-500 text-xs font-semibold">Dólar (solo DolarApi)</span><select name="ftype" class="inp mt-1">${op('blue','Blue',o.type)}${op('oficial','Oficial',o.type)}${op('bolsa','MEP',o.type)}${op('contadoconliqui','CCL',o.type)}</select></label>`+
+    `<label class="block"><span class="text-slate-500 text-xs font-semibold">Precio</span><select name="fside" class="inp mt-1">${op('venta','Venta',o.side)}${op('compra','Compra',o.side)}</select></label>`+
+    `<label class="block col-span-2"><span class="text-slate-500 text-xs font-semibold">Ajuste en pesos (+ o -, normalmente 0)</span><input name="adj" type="number" step="any" value="${c.fxAdj||0}" class="inp mt-1"></label>`+
     fld('base','Cargo precios y costos en',BC(),'select',{opts:['USD','ARS'],full:1}))+
-    `<div class="mt-3"><button type="button" class="btn" onclick="traerDolar()">Probar ahora</button></div><p class="text-xs text-slate-400 mt-3">La cotización automática es la nacional. Si el blue de Córdoba suele estar unos pesos arriba o abajo, ponelo en el ajuste. Cambiá la moneda de los precios solo al empezar: los montos que ya cargaste no se convierten.</p>`,d=>{
+    `<div class="mt-3"><button type="button" class="btn" onclick="traerDolar()">Probar ahora</button></div><p class="text-xs text-slate-400 mt-3">Si la actualización falla, la app conserva el último valor. Cambiá la moneda de los precios solo al empezar: los montos que ya cargaste no se convierten.</p>`,d=>{
     const auto=d.auto==='1';
     if(!auto&&!(+d.fx>0))return toast('Poné cuántos pesos vale el dólar','err');
-    Object.assign(CFG(),{fx:+d.fx||c.fx||0,base:d.base,fxDate:today(),fxAuto:auto,fxType:d.ftype,fxSide:d.fside,fxAdj:+d.adj||0,fxAt:0});
+    if(auto&&d.fsrc==='infodolar'&&!d.furl.trim())return toast('Pegá la dirección del Worker de InfoDolar','err');
+    Object.assign(CFG(),{fx:+d.fx||c.fx||0,base:d.base,fxDate:today(),fxAuto:auto,fxSrc:d.fsrc,fxUrl:d.furl.trim(),fxType:d.ftype,fxSide:d.fside,fxAdj:+d.adj||0,fxAt:0});
     save();closeM();render();toast('Cotización guardada');if(auto)autoFx(true);
   });
 }
 async function traerDolar(){
   const q=n=>document.querySelector('[name='+n+']');
-  try{const v=await getFx(q('ftype').value,q('fside').value,+q('adj').value||0);q('fx').value=v;toast('Dólar: $ '+v)}
-  catch(e){toast('No pude traer la cotización. Cargala a mano.','err')}
+  try{const v=await getFx({src:q('fsrc').value,url:q('furl').value.trim(),type:q('ftype').value,side:q('fside').value,adj:+q('adj').value||0});q('fx').value=v;toast('Dólar: $ '+v)}
+  catch(e){toast('No pude traer la cotización. Revisá la fuente o cargala a mano.','err')}
 }
 function gananciaInfo(){
   const S=db.sales,tv=sum(S,x=>x.total),tg=sum(S,x=>x.profit),tc=tv-tg;
