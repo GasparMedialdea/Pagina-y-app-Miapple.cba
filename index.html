@@ -27,6 +27,7 @@ th{font-weight:600;text-align:left;font-size:.75rem;color:#64748b;padding:.6rem 
 td{padding:.6rem .75rem;border-top:1px solid #eef1f5;font-size:.88rem}
 :root{color-scheme:light}#bn{padding-bottom:env(safe-area-inset-bottom,0px)}
 :focus-visible{outline:2px solid #3346d3;outline-offset:2px}
+@media print{body *{visibility:hidden}#rcpt,#rcpt *{visibility:visible}#rcpt{position:absolute;left:0;top:0;width:100%;padding:16px}#mf{max-height:none!important;overflow:visible!important}}
 </style></head>
 <body>
 <aside class="hidden md:flex fixed h-full w-56 flex-col gap-1 bg-white border-r p-4">
@@ -60,8 +61,14 @@ const CFG=()=>db.cfg[0]||(db.cfg[0]={id:'main'});
 const sum=(a,f)=>a.reduce((t,x)=>t+f(x),0);
 const saldo=d=>d.total-sum(d.pays||[],p=>p.amount);
 const pend=k=>db.debts.filter(d=>d.kind===k&&saldo(d)>0.5);
-const stockCost=()=>sum(db.phones.filter(p=>p.status!=='Vendido'),p=>p.cost)+sum(db.acc,a=>a.stock*a.cost);
-const cajaBase=()=>sum(db.sales,s=>s.profit)-stockCost()-sum(pend('cobrar'),saldo)+sum(pend('pagar'),saldo)-sum(db.moves,m=>m.amount);
+const pcost=p=>(+p.cost||0)+sum(p.repairs||[],r=>r.amount);
+const stockCost=()=>sum(db.phones.filter(p=>p.status!=='Vendido'),pcost)+sum(db.acc,a=>a.stock*a.cost);
+const senas=()=>sum(db.phones.filter(p=>p.status==='Reservado'&&p.res),p=>p.res.amount);
+const addDays=(d,n)=>{const x=new Date(d+'T12:00:00');x.setDate(x.getDate()+n);return x.toISOString().slice(0,10)};
+const daysSince=d=>d?Math.max(0,Math.floor((new Date(today()+'T12:00:00')-new Date(d.slice(0,10)+'T12:00:00'))/864e5)):0;
+const waNum=t=>{const d=String(t||'').replace(/\D/g,'');return d?(d.startsWith('54')?d:'549'+d.replace(/^0+/,'')):''};
+const TERMS='La garantía cubre fallas de funcionamiento del equipo. No cubre golpes, humedad, equipos abiertos o reparados por terceros, ni software modificado.';
+const cajaBase=()=>sum(db.sales,s=>s.profit)-stockCost()-sum(pend('cobrar'),saldo)+sum(pend('pagar'),saldo)-sum(db.moves,m=>m.amount)+senas();
 const caja=()=>(CFG().ajuste||0)+cajaBase();
 const setSync=(t,ok)=>{const e=$('#sync');e.textContent=t;e.style.color=ok?'#0b7a64':'#64748b'};
 const keep=()=>localStorage.setItem('cel_db',JSON.stringify(db));
@@ -103,7 +110,7 @@ function boot(){
   cloudAPI.onAuth(u=>{if(u){$('#login').classList.add('hidden');render();startSync()}else $('#login').classList.remove('hidden')});
 }
 setSync('Guardado en este dispositivo',0);
-const ui={tab:'dash',inv:'phones',q:'',st:'',cq:'',sq:'',cart:[],cid:'',cin:'',pay:'Efectivo',paid:'',cuo:'',venc:'',cur:'',fxs:''};
+const ui={tab:'dash',inv:'phones',q:'',st:'',cq:'',sq:'',cart:[],cid:'',cin:'',pay:'Efectivo',paid:'',cuo:'',venc:'',cur:'',fxs:'',canje:[],war:''};
 const ST=['Disponible','Reservado','Vendido'],COND=['Nuevo','Usado','Grado A','Grado B'],PAY=['Efectivo','Transferencia','Tarjeta','USDT','Otro'];
 const TABS=[['dash','Resumen','layout-dashboard'],['inv','Inventario','smartphone'],['cli','Clientes','users'],['pos','Ventas','shopping-cart'],['fin','Deudas','banknote']];
 const cl=c=>c.name+(c.dni?' - '+c.dni:'');
@@ -131,13 +138,13 @@ V.dash=()=>{
   const ph=db.phones.filter(p=>p.status!=='Vendido');
   const sa=db.acc.filter(x=>!x.incl);
   const nAcc=sa.reduce((a,x)=>a+x.stock,0);
-  const cap=ph.reduce((a,p)=>a+p.cost,0)+sa.reduce((a,x)=>a+x.stock*x.cost,0);
+  const cap=ph.reduce((a,p)=>a+pcost(p),0)+sa.reduce((a,x)=>a+x.stock*x.cost,0);
   const est=ph.reduce((a,p)=>a+p.price,0)+sa.reduce((a,x)=>a+x.stock*x.price,0);
   const gan=db.sales.reduce((a,s)=>a+s.profit,0);
   const low=db.acc.filter(x=>x.stock<=x.min);
   const vencidas=pend('cobrar').filter(d=>d.venc&&d.venc<today()).length;
   const card=(l,v,s,ic,c='')=>`<div class="card p-4 ${c}"><div class="flex justify-between text-sm font-semibold opacity-75">${l}<i data-lucide="${ic}"></i></div><div class="text-2xl font-extrabold mt-2">${v}</div><div class="text-xs opacity-75 mt-1">${s}</div></div>`;
-  return head('Resumen',`<button class="btn" onclick="fxForm()"><i data-lucide="dollar-sign"></i>${fxLabel()}</button><button class="btn" onclick="cfgForm()"><i data-lucide="settings"></i>Ajustes</button><button class="btn" onclick="exportDb()"><i data-lucide="download"></i>Exportar copia</button><label class="btn cursor-pointer"><i data-lucide="upload"></i>Importar<input type="file" accept=".json" class="hidden" onchange="importDb(this)"></label>${window.cloudAPI?'<button class="btn" onclick="salir()">Salir</button>':''}`)+
+  return head('Resumen',`<button class="btn" onclick="go('rep')"><i data-lucide="bar-chart-3"></i>Reportes</button><button class="btn" onclick="fxForm()"><i data-lucide="dollar-sign"></i>${fxLabel()}</button><button class="btn" onclick="cfgForm()"><i data-lucide="settings"></i>Ajustes</button><button class="btn" onclick="exportDb()"><i data-lucide="download"></i>Exportar copia</button><label class="btn cursor-pointer"><i data-lucide="upload"></i>Importar<input type="file" accept=".json" class="hidden" onchange="importDb(this)"></label>${window.cloudAPI?'<button class="btn" onclick="salir()">Salir</button>':''}`)+
   `<div class="grid grid-cols-2 xl:grid-cols-4 gap-3">`+
   card('Capital en stock',money(cap),`${ph.length} celulares y ${nAcc} accesorios`,'wallet')+
   card('Valor de venta estimado',money(est),'Ganancia potencial: '+money(est-cap),'tag')+
@@ -146,10 +153,10 @@ V.dash=()=>{
   `<button class="text-left [&>div]:h-full" onclick="ajusteForm()">`+card('Plata para invertir',money(caja())+`<div class="text-lg font-bold opacity-90 mt-0.5">`+(FX()?'= '+fm(fromBase(caja(),OC(),FX()),OC()):'Cargá el dólar para ver la otra moneda')+`</div>`,'Estimada. Tocá para ajustarla','banknote','!bg-[#0b7a64] !text-white !border-[#0b7a64]')+`</button>`+
   card('Me deben',money(sum(pend('cobrar'),saldo)),pend('cobrar').length+' cuentas'+(vencidas?' - '+vencidas+' vencidas':''),'arrow-down-left',vencidas?'!bg-[#fde2e2] !border-[#f0b3b3]':'')+
   card('Debo a proveedores',money(sum(pend('pagar'),saldo)),pend('pagar').length+' cuentas','arrow-up-right')+`</div>
-  <div class="grid gap-3 mt-3">
+  <div class="grid gap-3 mt-3">${revisar()}
   <div class="card p-4"><h2 class="font-bold mb-2">Últimas ventas</h2>${db.sales.length?db.sales.slice(0,6).map(s=>saleRow(s)).join(''):'<p class="text-sm text-slate-500">Todavía no registraste ventas. Andá a Ventas para cargar la primera.</p>'}</div></div>`;
 };
-const saleRow=(s,undo)=>`<div class="flex justify-between gap-3 py-2.5 border-t first:border-0 text-sm"><div><div class="font-semibold">${esc(s.cname)} <span class="text-slate-400 font-normal">${fdate(s.date)}</span></div><div class="text-xs text-slate-500">${s.items.map(i=>esc(i.name)+(i.qty>1?' x'+i.qty:'')).join(', ')} - ${s.pay}${s.cur&&s.cur!==BC()?' - cobrado en '+curName(s.cur)+(s.fx?' (dólar '+fm(s.fx,'ARS')+')':''):''}</div></div><div class="text-right whitespace-nowrap"><div class="font-bold">${money(s.total)}</div><div class="text-xs text-[#0b7a64] font-semibold">+${money(s.profit)}</div>${undo?`<button class="text-xs text-red-600 font-semibold" onclick="anular('${s.id}')">Anular</button>`:''}</div></div>`;
+const saleRow=(s,undo)=>`<div class="flex justify-between gap-3 py-2.5 border-t first:border-0 text-sm"><div><div class="font-semibold">${esc(s.cname)} <span class="text-slate-400 font-normal">${fdate(s.date)}</span></div><div class="text-xs text-slate-500">${s.items.map(i=>esc(i.name)+(i.qty>1?' x'+i.qty:'')).join(', ')} - ${s.pay}${s.cur&&s.cur!==BC()?' - cobrado en '+curName(s.cur)+(s.fx?' (dólar '+fm(s.fx,'ARS')+')':''):''}${s.canje&&s.canje.length?' - Canje: '+s.canje.map(c=>esc(c.name)).join(', ')+' ('+money(s.canjeVal)+')':''}${s.sena?' - Seña '+money(s.sena):''}</div></div><div class="text-right whitespace-nowrap"><div class="font-bold">${money(s.total)}</div><div class="text-xs text-[#0b7a64] font-semibold">+${money(s.profit)}</div><button class="text-xs text-[#3346d3] font-semibold mr-2" onclick="receipt('${s.id}')">Comprobante</button>${undo?`<button class="text-xs text-red-600 font-semibold" onclick="anular('${s.id}')">Anular</button>`:''}</div></div>`;
 
 V.inv=()=>{const P=ui.inv==='phones';return head('Inventario',`<button class="btn btn-p" onclick="${P?'phoneForm()':'accForm()'}"><i data-lucide="plus"></i>${P?'Nuevo celular':'Nuevo accesorio'}</button>`)+
 `<div class="flex flex-wrap gap-2 mb-3"><div class="flex bg-white border rounded-lg p-0.5">${[['phones','Celulares'],['acc','Accesorios']].map(([k,l])=>`<button onclick="ui.inv='${k}';ui.q='';ui.st='';render()" class="px-3 py-1.5 rounded-md text-sm font-semibold ${ui.inv===k?'bg-[#3346d3] text-white':'text-slate-600'}">${l}</button>`).join('')}</div>
@@ -161,7 +168,7 @@ function invList(){
   if(ui.inv==='phones'){
     const r=db.phones.filter(p=>(!q||(p.model+p.imei+p.color+p.cap).toLowerCase().includes(q))&&(!ui.st||p.status===ui.st)).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
     if(!r.length)return setH('#list',`<div class="card p-8 text-center text-slate-500 text-sm">${db.phones.length?'Ningún celular coincide con la búsqueda.':'Todavía no cargaste celulares. Usá «Nuevo celular» para empezar.'}</div>`);
-    setH('#list',`<div class="card overflow-x-auto"><table class="w-full"><thead><tr><th>Equipo</th><th class="hidden md:table-cell">Batería</th><th class="hidden md:table-cell">Condición</th><th class="hidden lg:table-cell">Costo</th><th>Venta</th><th>Estado</th><th></th></tr></thead><tbody>${r.map(p=>`<tr><td><div class="font-semibold">${esc(p.model)} <span class="text-slate-500 font-normal">${esc(p.cap)}</span></div><div class="text-xs text-slate-500">IMEI ${esc(p.imei)}${p.color?' - '+esc(p.color):''}</div><div class="text-xs text-slate-400">Ingreso ${fdate(p.date)}</div></td><td class="hidden md:table-cell">${p.bat!==''?p.bat+'%':'-'}</td><td class="hidden md:table-cell">${esc(p.cond)}</td><td class="hidden lg:table-cell">${money(p.cost)}<div class="text-xs text-slate-400">${esc(p.supplier)}</div></td><td class="font-semibold">${money(p.price)}</td><td><span class="chip k-${p.status}">${p.status}</span></td><td class="text-right whitespace-nowrap"><button class="btn-i" title="Editar" onclick="phoneForm('${p.id}')"><i data-lucide="pencil"></i></button><button class="btn-i" title="Eliminar" onclick="del('phones','${p.id}')"><i data-lucide="trash-2"></i></button></td></tr>`).join('')}</tbody></table></div>`);
+    setH('#list',`<div class="card overflow-x-auto"><table class="w-full"><thead><tr><th>Equipo</th><th class="hidden md:table-cell">Batería</th><th class="hidden md:table-cell">Condición</th><th class="hidden lg:table-cell">Costo</th><th>Venta</th><th>Estado</th><th></th></tr></thead><tbody>${r.map(p=>`<tr><td><div class="font-semibold">${esc(p.model)} <span class="text-slate-500 font-normal">${esc(p.cap)}</span>${p.canje?' <span class="chip" style="background:#e6e9fb;color:#3346d3">Canje</span>':''}</div><div class="text-xs text-slate-500">IMEI ${esc(p.imei)}${p.color?' - '+esc(p.color):''}</div><div class="text-xs text-slate-400">Ingreso ${fdate(p.date)}${p.status!=='Vendido'?' - '+daysSince(p.date)+' días':''}</div></td><td class="hidden md:table-cell">${p.bat!==''?p.bat+'%':'-'}</td><td class="hidden md:table-cell">${esc(p.cond)}</td><td class="hidden lg:table-cell">${money(pcost(p))}${(p.repairs||[]).length?' <span class="text-[10px] text-slate-400">(con arreglos)</span>':''}<div class="text-xs text-slate-400">${esc(p.supplier)}</div></td><td class="font-semibold">${money(p.price)}</td><td><span class="chip k-${p.status}">${p.status}</span>${p.status==='Reservado'&&p.res?`<div class="text-[11px] text-slate-500 mt-0.5">${esc(p.res.party)} - seña ${money(p.res.amount)}</div>`:''}</td><td class="text-right whitespace-nowrap">${p.status==='Vendido'?'':(p.status==='Reservado'?`<button class="btn-i" title="Cancelar reserva" onclick="cancelRes('${p.id}')"><i data-lucide="undo-2"></i></button>`:`<button class="btn-i" title="Reservar" onclick="resForm('${p.id}')"><i data-lucide="bookmark"></i></button>`)+`<button class="btn-i" title="Arreglos" onclick="repairForm('${p.id}')"><i data-lucide="wrench"></i></button>`}<button class="btn-i" title="Editar" onclick="phoneForm('${p.id}')"><i data-lucide="pencil"></i></button><button class="btn-i" title="Eliminar" onclick="del('phones','${p.id}')"><i data-lucide="trash-2"></i></button></td></tr>`).join('')}</tbody></table></div>`);
   }else{
     const r=db.acc.filter(a=>!q||(a.name+a.cat).toLowerCase().includes(q));
     if(!r.length)return setH('#list',`<div class="card p-8 text-center text-slate-500 text-sm">${db.acc.length?'Ningún accesorio coincide con la búsqueda.':'Todavía no cargaste accesorios. Usá «Nuevo accesorio» para empezar.'}</div>`);
@@ -240,12 +247,12 @@ function posRes(){
   const ac=db.acc.filter(a=>a.stock-(inCart(a.id)?.qty||0)>0&&(!q||a.name.toLowerCase().includes(q))).slice(0,8);
   const row=(t,id,ti,sub,pr)=>`<button class="w-full flex justify-between items-center gap-3 text-left p-2.5 rounded-lg hover:bg-slate-50 border-t first:border-0" onclick="addCart('${t}','${id}')"><div><div class="font-semibold text-sm">${ti}</div><div class="text-xs text-slate-500">${sub}</div></div><div class="font-bold text-sm whitespace-nowrap">${money(pr)}</div></button>`;
   setH('#res',ph.length||ac.length?
-    (ph.length?`<div class="text-xs font-semibold text-slate-400 mt-1">Celulares</div>`+ph.map(p=>row('p',p.id,esc(p.model)+' '+esc(p.cap),'IMEI '+esc(p.imei)+(p.status==='Reservado'?' - Reservado':''),p.price)).join(''):'')+
+    (ph.length?`<div class="text-xs font-semibold text-slate-400 mt-1">Celulares</div>`+ph.map(p=>row('p',p.id,esc(p.model)+' '+esc(p.cap),'IMEI '+esc(p.imei)+(p.status==='Reservado'?' - Reservado'+(p.res?' por '+esc(p.res.party)+' (seña '+money(p.res.amount)+')':''):''),p.price)).join(''):'')+
     (ac.length?`<div class="text-xs font-semibold text-slate-400 mt-2">Accesorios</div>`+ac.map(a=>row('a',a.id,esc(a.name),(a.incl?'Se entrega con el celular - ':'')+'Stock '+a.stock,a.incl?0:a.price)).join(''):''):
     '<p class="text-sm text-slate-500 p-2">No hay productos disponibles con ese dato.</p>');
 }
 function addCart(t,id){
-  if(t==='p'){const p=db.phones.find(x=>x.id===id);if(p.status==='Reservado')toast('Ojo: este equipo figura como reservado');ui.cart.push({t,id,name:p.model+' '+p.cap+' (IMEI '+p.imei+')',qty:1,price:p.price,cost:p.cost})}
+  if(t==='p'){const p=db.phones.find(x=>x.id===id);if(p.res)toast('Reservado por '+p.res.party+': su seña se descuenta del total');else if(p.status==='Reservado')toast('Ojo: este equipo figura como reservado');ui.cart.push({t,id,name:p.model+' '+p.cap+' (IMEI '+p.imei+')',m:p.model+' '+p.cap,qty:1,price:p.price,cost:pcost(p),sena:p.res?p.res.amount:0,resParty:p.res?p.res.party:'',resInfo:p.res?{...p.res}:null})}
   else{const a=db.acc.find(x=>x.id===id),c=ui.cart.find(x=>x.id===id);if(c){if(c.qty<a.stock)c.qty++}else ui.cart.push({t,id,name:a.name,qty:1,price:a.incl?0:a.price,cost:a.cost,incl:!!a.incl})}
   posRes();posCart();
 }
@@ -253,16 +260,20 @@ const totals=()=>({total:ui.cart.reduce((a,c)=>a+c.price*c.qty,0),profit:ui.cart
 function qty(i,d){const c=ui.cart[i];if(c.t==='p')return;const a=db.acc.find(x=>x.id===c.id);c.qty=Math.max(1,Math.min(a.stock,c.qty+d));posRes();posCart()}
 function setPr(i,v){ui.cart[i].price=Math.max(0,+v||0);posCart()}
 function posCart(){
-  const {total,profit}=totals();
-  const {cur,fx,conv,pd,toPay}=payCalc(total);
-  setH('#cart',`<h2 class="font-bold mb-2">Carrito</h2>${ui.cart.length?ui.cart.map((c,i)=>`<div class="py-2.5 border-t first:border-0"><div class="flex justify-between gap-2 text-sm"><span class="font-semibold">${esc(c.name)}</span><button class="btn-i !p-1" onclick="ui.cart.splice(${i},1);posRes();posCart()"><i data-lucide="x"></i></button></div><div class="flex items-center gap-2 mt-1.5">${c.t==='a'?`<button class="btn !px-2 !py-0.5" onclick="qty(${i},-1)">-</button><b class="text-sm w-5 text-center">${c.qty}</b><button class="btn !px-2 !py-0.5" onclick="qty(${i},1)">+</button>`:''}<span class="text-xs text-slate-500 ml-auto">Precio</span><input type="number" min="0" class="inp !w-28 !py-1" ${c.incl?'disabled':''} value="${c.price}" onchange="setPr(${i},this.value)"></div></div>`).join(''):'<p class="text-sm text-slate-500 py-4">Buscá un producto para agregarlo a la venta.</p>'}
+  const {total,profit}=totals(),cv=sum(ui.canje,c=>c.value),sn=sum(ui.cart,c=>c.sena||0),due=Math.max(0,total-cv-sn);
+  const {cur,fx,conv,pd,toPay}=payCalc(due);
+  setH('#cart',`<h2 class="font-bold mb-2">Carrito</h2>${ui.cart.length?ui.cart.map((c,i)=>`<div class="py-2.5 border-t first:border-0"><div class="flex justify-between gap-2 text-sm"><span class="font-semibold">${esc(c.name)}</span><button class="btn-i !p-1" onclick="ui.cart.splice(${i},1);posRes();posCart()"><i data-lucide="x"></i></button></div><div class="flex items-center gap-2 mt-1.5">${c.t==='a'?`<button class="btn !px-2 !py-0.5" onclick="qty(${i},-1)">-</button><b class="text-sm w-5 text-center">${c.qty}</b><button class="btn !px-2 !py-0.5" onclick="qty(${i},1)">+</button>`:''}<span class="text-xs text-slate-500 ml-auto">Precio</span><input type="number" min="0" class="inp !w-28 !py-1" ${c.incl?'disabled':''} value="${c.price}" onchange="setPr(${i},this.value)"></div>${c.sena?`<div class="text-xs text-[#0b7a64] mt-1">Reservado por ${esc(c.resParty)} - seña ${money(c.sena)}</div>`:''}</div>`).join(''):'<p class="text-sm text-slate-500 py-4">Buscá un producto para agregarlo a la venta.</p>'}
+  <div class="py-2.5 border-t"><div class="flex justify-between items-center"><span class="text-sm font-semibold">Equipos en canje</span><button class="btn !py-1" onclick="canjeForm()"><i data-lucide="repeat"></i>Agregar</button></div>${ui.canje.map((c,i)=>`<div class="flex justify-between gap-2 text-sm mt-2"><div><div>${esc(c.model)} ${esc(c.cap)}</div><div class="text-xs text-slate-500">IMEI ${esc(c.imei)}${c.price?' - margen est. '+money(c.price-c.value):''}</div></div><div class="whitespace-nowrap font-semibold">-${money(c.value)}<button class="btn-i !p-1" onclick="ui.canje.splice(${i},1);posCart()"><i data-lucide="x"></i></button></div></div>`).join('')}</div>
   <div class="border-t mt-2 pt-3 space-y-2"><label class="block text-xs font-semibold text-slate-500">Método de pago<select class="inp mt-1" onchange="ui.pay=this.value">${PAY.map(p=>`<option ${ui.pay===p?'selected':''}>${p}</option>`).join('')}</select></label>
   <div class="grid grid-cols-2 gap-2"><label class="block text-xs font-semibold text-slate-500">Te pagan en<select class="inp mt-1" onchange="ui.cur=this.value;posCart()"><option value="USD" ${cur==='USD'?'selected':''}>Dólares</option><option value="ARS" ${cur==='ARS'?'selected':''}>Pesos</option></select></label>${conv?`<label class="block text-xs font-semibold text-slate-500">Dólar de esta venta<input type="number" min="0" class="inp mt-1" value="${fx||''}" onchange="ui.fxs=this.value;posCart()"></label>`:''}</div>
   ${conv&&!fx?'<p class="text-xs text-red-600 font-semibold">Cargá la cotización del dólar para convertir.</p>':''}${conv&&fx?`<div class="flex justify-between text-sm"><span>Total a cobrar</span><b>${fm(toPay,cur)}</b></div>`:''}
   <label class="block text-xs font-semibold text-slate-500">Cobrado ahora en ${curName(cur)} (vacío = cobrás todo)<input type="number" min="0" class="inp mt-1" value="${ui.paid}" onchange="ui.paid=this.value;posCart()"></label>
-  ${pd<total?`<div class="grid grid-cols-2 gap-2"><label class="block text-xs font-semibold text-slate-500">Cuotas<input type="number" min="1" class="inp mt-1" value="${ui.cuo}" onchange="ui.cuo=this.value"></label><label class="block text-xs font-semibold text-slate-500">Próximo vencimiento<input type="date" class="inp mt-1" value="${ui.venc}" onchange="ui.venc=this.value"></label></div><div class="flex justify-between text-sm"><span>Queda debiendo</span><b>${money(total-pd)}</b></div>`:''}
+  ${pd<due?`<div class="grid grid-cols-2 gap-2"><label class="block text-xs font-semibold text-slate-500">Cuotas<input type="number" min="1" class="inp mt-1" value="${ui.cuo}" onchange="ui.cuo=this.value"></label><label class="block text-xs font-semibold text-slate-500">Próximo vencimiento<input type="date" class="inp mt-1" value="${ui.venc}" onchange="ui.venc=this.value"></label></div><div class="flex justify-between text-sm"><span>Queda debiendo</span><b>${money(due-pd)}</b></div>`:''}
+  <label class="block text-xs font-semibold text-slate-500">Garantía (días)<input type="number" min="0" class="inp mt-1" value="${ui.war===''?(CFG().war??30):ui.war}" onchange="ui.war=this.value"></label>
   <div class="flex justify-between text-sm"><span>Ganancia neta</span><b class="${profit<0?'text-red-600':'text-[#0b7a64]'}">${money(profit)}</b></div>
+  ${cv?`<div class="flex justify-between text-sm"><span>Canje</span><b>-${money(cv)}</b></div>`:''}${sn?`<div class="flex justify-between text-sm"><span>Seña aplicada</span><b>-${money(sn)}</b></div>`:''}
   <div class="flex justify-between text-lg font-extrabold"><span>Total</span><span>${money(total)}</span></div>
+  ${cv||sn?`<div class="flex justify-between text-sm"><span>A cobrar ahora</span><b>${money(due)}</b></div>`:''}
   <button class="btn btn-p w-full justify-center !py-3 disabled:opacity-40" ${ui.cart.length?'':'disabled'} onclick="confirmSale()"><i data-lucide="check"></i>Confirmar venta</button></div>`);
 }
 function confirmSale(){
@@ -273,19 +284,25 @@ function confirmSale(){
     else{const a=db.acc.find(x=>x.id===c.id);if(!a||a.stock<c.qty)return toast('Stock insuficiente: '+c.name,'err')}
   }
   const {total,profit}=totals(),cli=db.clients.find(x=>x.id===ui.cid);
-  const pc=payCalc(total),pd=pc.pd;
+  const cv=sum(ui.canje,c=>c.value),sn=sum(ui.cart,c=>c.sena||0);
+  if(cv+sn>total+0.005)return toast('El canje y la seña superan el total de la venta','err');
+  if(ui.canje.length&&!cli)return toast('Para recibir un equipo en canje elegí un cliente','err');
+  const due=total-cv-sn,pc=payCalc(due),pd=pc.pd;
   if(pc.conv&&!pc.fx)return toast('Cargá la cotización del dólar','err');
-  if(pd<total&&!cli)return toast('Para dejar saldo pendiente elegí un cliente','err');
-  ui.cart.forEach(c=>{if(c.t==='p')db.phones.find(x=>x.id===c.id).status='Vendido';else db.acc.find(x=>x.id===c.id).stock-=c.qty});
-  const sid=uid();
-  db.sales.unshift({id:sid,date:today(),cid:ui.cid,cname:cli?cli.name:'Consumidor final',items:ui.cart.map(c=>({...c})),pay:ui.pay,total,profit,paid:pd,cur:pc.cur,fx:pc.conv?pc.fx:0});
-  if(pd<total)db.debts.push({id:uid(),kind:'cobrar',party:cli.name,cid:cli.id,sid,desc:'Venta del '+fdate(today()),total:total-pd,cuotas:+ui.cuo||'',venc:ui.venc,date:today(),pays:[]});
-  save();ui.cart=[];ui.cid='';ui.cin='';ui.sq='';ui.paid='';ui.cuo='';ui.venc='';ui.fxs='';render();toast('Venta registrada');
+  if(pd<due&&!cli)return toast('Para dejar saldo pendiente elegí un cliente','err');
+  const sid=uid(),war=ui.war===''?(CFG().war??30):Math.max(0,+ui.war||0);
+  ui.cart.forEach(c=>{if(c.t==='p'){const p=db.phones.find(x=>x.id===c.id);p.status='Vendido';delete p.res}else db.acc.find(x=>x.id===c.id).stock-=c.qty});
+  const cj=ui.canje.map(c=>{const id=uid();db.phones.push({id,model:c.model,imei:c.imei,cap:c.cap,bat:c.bat,color:c.color,cond:c.cond,cost:c.value,price:c.price,supplier:'Canje - '+cli.name,date:today(),status:'Disponible',canje:true,sid,check:c.check,note:c.note});return {id,name:(c.model+' '+c.cap).trim(),imei:c.imei,value:c.value}});
+  db.sales.unshift({id:sid,date:today(),cid:ui.cid,cname:cli?cli.name:'Consumidor final',items:ui.cart.map(c=>({...c})),pay:ui.pay,total,profit,paid:pd,canje:cj,canjeVal:cv,sena:sn,war,warEnd:war?addDays(today(),war):'',cur:pc.cur,fx:pc.conv?pc.fx:0});
+  if(pd<due)db.debts.push({id:uid(),kind:'cobrar',party:cli.name,cid:cli.id,sid,desc:'Venta del '+fdate(today()),total:due-pd,cuotas:+ui.cuo||'',venc:ui.venc,date:today(),pays:[]});
+  save();ui.cart=[];ui.cid='';ui.cin='';ui.sq='';ui.paid='';ui.cuo='';ui.venc='';ui.fxs='';ui.canje=[];ui.war='';render();toast('Venta registrada');receipt(sid);
 }
 function anular(id){
-  if(!confirm('¿Anular esta venta? Los equipos vuelven a Disponible y los accesorios recuperan su stock.'))return;
-  const s=db.sales.find(x=>x.id===id);
-  s.items.forEach(i=>{if(i.t==='p'){const p=db.phones.find(x=>x.id===i.id);if(p)p.status='Disponible'}else{const a=db.acc.find(x=>x.id===i.id);if(a)a.stock+=i.qty}});
+  const s=db.sales.find(x=>x.id===id),cj=(s.canje||[]).map(c=>db.phones.find(p=>p.id===c.id)).filter(Boolean);
+  if(cj.some(p=>p.status!=='Disponible'))return toast('No se puede anular: un equipo recibido en canje ya se vendió o está reservado','err');
+  if(!confirm('¿Anular esta venta? Los equipos vuelven a su estado anterior, los accesorios recuperan su stock y los equipos recibidos en canje se quitan del inventario.'))return;
+  s.items.forEach(i=>{if(i.t==='p'){const p=db.phones.find(x=>x.id===i.id);if(p){if(i.resInfo){p.status='Reservado';p.res=i.resInfo}else p.status='Disponible'}}else{const a=db.acc.find(x=>x.id===i.id);if(a)a.stock+=i.qty}});
+  const ids=cj.map(p=>p.id);db.phones=db.phones.filter(p=>!ids.includes(p.id));
   db.sales=db.sales.filter(x=>x.id!==id);db.debts=db.debts.filter(d=>d.sid!==id);save();render();toast('Venta anulada');
 }
 
@@ -294,7 +311,7 @@ const LOGO='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAIAAAACACAIAAABMXPacAA
 function setBrand(){const c=CFG(),n=c.name||'MiApple.Cba';$('#brand').innerHTML=`<img src="${c.logo||LOGO}" class="w-9 h-9 rounded-lg">`+esc(n);document.title=n}
 function cfgForm(){
   const c=CFG();
-  modal('Ajustes del negocio',`<div class="space-y-3">${fld('name','Nombre del negocio',c.name||'MiApple.Cba')}<div><span class="text-slate-500 text-xs font-semibold">Logo</span><div class="flex items-center gap-3 mt-1"><img id="lp" src="${c.logo||''}" class="w-14 h-14 rounded-xl object-cover bg-slate-100 ${c.logo?'':'hidden'}"><input type="file" accept="image/*" onchange="pickLogo(this)" class="text-sm"></div><input type="hidden" name="logo" value="${c.logo||''}"></div></div>`,d=>{Object.assign(CFG(),{name:d.name.trim(),logo:d.logo});save();closeM();render();toast('Ajustes guardados')});
+  modal('Ajustes del negocio',`<div class="space-y-3">${fld('name','Nombre del negocio',c.name||'MiApple.Cba')}${fld('war','Garantía por defecto (días)',c.war??30,'number')}${fld('terms','Texto de garantía (sale en el comprobante)',c.terms||TERMS)}<div><span class="text-slate-500 text-xs font-semibold">Logo</span><div class="flex items-center gap-3 mt-1"><img id="lp" src="${c.logo||''}" class="w-14 h-14 rounded-xl object-cover bg-slate-100 ${c.logo?'':'hidden'}"><input type="file" accept="image/*" onchange="pickLogo(this)" class="text-sm"></div><input type="hidden" name="logo" value="${c.logo||''}"></div></div>`,d=>{Object.assign(CFG(),{name:d.name.trim(),logo:d.logo,war:d.war===''?30:+d.war,terms:d.terms.trim()});save();closeM();render();toast('Ajustes guardados')});
 }
 function pickLogo(i){const f=i.files[0];if(!f)return;const im=new Image();im.onload=()=>{const k=Math.min(1,160/Math.max(im.width,im.height)),cv=document.createElement('canvas');cv.width=Math.round(im.width*k);cv.height=Math.round(im.height*k);cv.getContext('2d').drawImage(im,0,0,cv.width,cv.height);const u=cv.toDataURL('image/png');document.querySelector('[name=logo]').value=u;$('#lp').src=u;$('#lp').classList.remove('hidden')};im.src=URL.createObjectURL(f)}
 function ajusteForm(){
@@ -320,7 +337,7 @@ function debtCard(d){
   return `<div class="card p-4"><div class="flex justify-between gap-2"><div><div class="font-bold">${esc(d.party)}</div><div class="text-xs text-slate-500">${esc(d.desc)}</div></div><div class="text-right whitespace-nowrap"><div class="font-extrabold">${money(s)}</div><div class="text-xs text-slate-500">de ${money(d.total)}</div></div></div>
   <div class="h-1.5 bg-slate-100 rounded mt-2"><div class="h-1.5 rounded bg-[#3346d3]" style="width:${d.total>0?Math.min(100,pg/d.total*100):0}%"></div></div>
   <div class="flex flex-wrap gap-x-3 text-xs text-slate-500 mt-2">${cq?`<span>Cuota de ${money(cq)} - pagó ${Math.floor(pg/cq+1e-6)} de ${d.cuotas}</span>`:''}${d.venc&&s>0.5?`<span class="${late?'font-bold text-red-600':''}">${late?'Vencida ':'Vence '}${fdate(d.venc)}</span>`:''}</div>
-  <div class="flex justify-between items-center mt-2 pt-2 border-t"><button class="btn disabled:opacity-40" onclick="payForm('${d.id}')" ${s>0.5?'':'disabled'}><i data-lucide="check"></i>${d.kind==='cobrar'?'Registrar cobro':'Registrar pago'}</button><span class="whitespace-nowrap"><button class="btn-i" title="Ver pagos" onclick="payHist('${d.id}')"><i data-lucide="list"></i></button><button class="btn-i" title="Editar" onclick="debtForm('${d.kind}','${d.id}')"><i data-lucide="pencil"></i></button><button class="btn-i" title="Eliminar" onclick="del('debts','${d.id}')"><i data-lucide="trash-2"></i></button></span></div></div>`;
+  <div class="flex justify-between items-center mt-2 pt-2 border-t"><button class="btn disabled:opacity-40" onclick="payForm('${d.id}')" ${s>0.5?'':'disabled'}><i data-lucide="check"></i>${d.kind==='cobrar'?'Registrar cobro':'Registrar pago'}</button><span class="whitespace-nowrap">${d.kind==='cobrar'&&s>0.5?`<button class="btn-i" title="Recordar por WhatsApp" onclick="recordar('${d.id}')"><i data-lucide="message-circle"></i></button>`:''}<button class="btn-i" title="Ver pagos" onclick="payHist('${d.id}')"><i data-lucide="list"></i></button><button class="btn-i" title="Editar" onclick="debtForm('${d.kind}','${d.id}')"><i data-lucide="pencil"></i></button><button class="btn-i" title="Eliminar" onclick="del('debts','${d.id}')"><i data-lucide="trash-2"></i></button></span></div></div>`;
 }
 function debtForm(k,id){
   const d=db.debts.find(x=>x.id===id)||{date:today()},C=k==='cobrar';
@@ -423,6 +440,109 @@ function lowInfo(){
   const low=db.acc.filter(x=>x.stock<=x.min).sort((a,b)=>a.stock-b.stock);
   modal('Stock bajo',low.length?`<p class="text-sm text-slate-600 mb-2">Estos accesorios llegaron a su stock mínimo:</p>`+low.map(x=>`<div class="flex justify-between items-center gap-3 py-2.5 border-t first:border-0 text-sm"><div><div class="font-semibold">${esc(x.name)}${x.incl?' <span class="chip" style="background:#e6e9fb;color:#3346d3">Se entrega</span>':''}</div><div class="text-xs text-slate-500">${esc(x.cat)}</div></div><span class="chip whitespace-nowrap" style="background:#fde2e2;color:#a11d1d">${x.stock<=0?'Sin stock':'Quedan '+x.stock+' (mín. '+x.min+')'}</span></div>`).join('')+`<div class="mt-4 text-right"><button type="button" class="btn btn-p" onclick="ui.inv='acc';ui.q='';closeM();go('inv')">Ir a accesorios</button></div>`:'<p class="text-sm text-slate-500">Todos los accesorios tienen stock suficiente.</p>');
 }
+
+/* ---------- CANJE, ARREGLOS, RESERVAS, COMPROBANTE, REPORTES ---------- */
+function canjeForm(){
+  const chk=['Pantalla sin fallas','Face ID / Touch ID funciona','Batería revisada','iCloud / cuenta liberada','IMEI verificado'];
+  modal('Equipo recibido en canje',grid(
+    fld('model','Modelo','','text',{req:1,full:1,att:'placeholder="iPhone 12"'})+fld('imei','IMEI','','text',{req:1,full:1,att:'inputmode="numeric"'})+
+    fld('cap','Capacidad','')+fld('bat','Batería (%)','','number',{att:'max="100"'})+fld('color','Color','')+fld('cond','Condición','Usado','select',{opts:COND})+
+    fld('value','Valor al que lo tomás ('+BC()+')','','number',{req:1})+fld('price','Precio de venta estimado ('+BC()+')','','number')+
+    `<div class="col-span-2"><div class="text-slate-500 text-xs font-semibold mb-1">Revisión</div>${chk.map((c,i)=>`<label class="flex items-center gap-2 text-sm py-0.5"><input type="checkbox" name="k${i}" value="1">${c}</label>`).join('')}</div>`+
+    fld('note','Notas (golpes, detalles)','','text',{full:1})),d=>{
+    d.imei=d.imei.trim();
+    if(db.phones.some(x=>x.imei===d.imei)||ui.canje.some(x=>x.imei===d.imei))return toast('Ese IMEI ya está cargado','err');
+    ui.canje.push({model:d.model,imei:d.imei,cap:d.cap,bat:d.bat===''?'':+d.bat,color:d.color,cond:d.cond,value:+d.value,price:+d.price||0,check:chk.filter((c,i)=>d['k'+i]==='1'),note:d.note});
+    closeM();posCart();toast('Equipo agregado al canje');
+  });
+}
+function repairForm(id){
+  const p=db.phones.find(x=>x.id===id),R=p.repairs||[];
+  modal('Arreglos de '+esc(p.model),`<p class="text-sm text-slate-500 mb-2">Costo del equipo ${money(p.cost)} + arreglos ${money(sum(R,r=>r.amount))} = <b>${money(pcost(p))}</b></p>`+
+    R.map((r,i)=>`<div class="flex justify-between items-center py-2 border-t first:border-0 text-sm"><div><div class="font-semibold">${esc(r.concept)}</div><div class="text-xs text-slate-500">${fdate(r.date)}${r.cur&&r.cur!==BC()?' - '+fm(r.raw,r.cur)+' a '+fm(r.fx,'ARS'):''}</div></div><div class="flex items-center gap-2 font-bold">${money(r.amount)}<button type="button" class="btn-i" onclick="delRepair('${id}',${i})"><i data-lucide="trash-2"></i></button></div></div>`).join('')+
+    `<div class="font-semibold text-sm mt-4 mb-2">Agregar arreglo</div>`+grid(fld('concept','Qué se arregló','','text',{req:1,full:1,att:'placeholder="Cambio de batería"'})+fld('amount','Costo','','number',{req:1})+fld('cur','Moneda',BC(),'select',{opts:['USD','ARS']})+fld('fx','Dólar (pesos)',FX()||'','number')+fld('date','Fecha',today(),'date',{full:1})),d=>{
+    let a=+d.amount,fx=+d.fx;
+    if(d.cur!==BC()){if(!fx)return toast('Poné la cotización del dólar','err');a=toBase(a,d.cur,fx)}
+    (p.repairs=p.repairs||[]).push({date:d.date,concept:d.concept,amount:a,raw:+d.amount,cur:d.cur,fx:d.cur!==BC()?fx:0});
+    save();render();toast('Arreglo agregado');repairForm(id);
+  });
+}
+function delRepair(id,i){if(!confirm('¿Quitar este arreglo?'))return;db.phones.find(x=>x.id===id).repairs.splice(i,1);save();render();repairForm(id)}
+function resForm(id){
+  const p=db.phones.find(x=>x.id===id);
+  modal('Reservar '+esc(p.model),grid(
+    `<label class="block col-span-2"><span class="text-slate-500 text-xs font-semibold">Cliente</span><input name="party" list="dl2" required class="inp mt-1"><datalist id="dl2">${db.clients.map(c=>`<option value="${esc(c.name)}">`).join('')}</datalist></label>`+
+    fld('amount','Seña','','number',{req:1})+fld('cur','Moneda',BC(),'select',{opts:['USD','ARS']})+fld('fx','Dólar (pesos)',FX()||'','number')+fld('note','Nota (opcional)','','text')),d=>{
+    let a=+d.amount,fx=+d.fx;
+    if(d.cur!==BC()){if(!fx)return toast('Poné la cotización del dólar','err');a=toBase(a,d.cur,fx)}
+    const party=d.party.trim();
+    p.status='Reservado';p.res={party,cid:(db.clients.find(c=>c.name===party)||{}).id||'',amount:a,raw:+d.amount,cur:d.cur,fx:d.cur!==BC()?fx:0,date:today(),note:d.note};
+    save();closeM();render();toast('Equipo reservado');
+  });
+}
+function cancelRes(id){
+  const p=db.phones.find(x=>x.id===id),r=p.res;
+  modal('Cancelar reserva',`<p class="text-sm text-slate-600 mb-4">${esc(p.model)} reservado${r?' por <b>'+esc(r.party)+'</b> con una seña de <b>'+money(r.amount)+'</b>':''}. ¿Qué pasa con la seña?</p><div class="flex flex-col gap-2"><button type="button" class="btn justify-center" onclick="doCancelRes('${id}',1)">Devolver la seña</button><button type="button" class="btn justify-center" onclick="doCancelRes('${id}',0)">Me quedo con la seña</button></div>`);
+}
+function doCancelRes(id,ret){
+  const p=db.phones.find(x=>x.id===id),r=p.res;
+  if(r&&!ret&&r.amount)db.moves.push({id:uid(),concept:'Seña retenida - '+p.model+' ('+r.party+')',amount:-r.amount,date:today()});
+  p.status='Disponible';delete p.res;save();closeM();render();toast('Reserva cancelada');
+}
+const paidTxt=s=>{const v=s.paid??s.total;return (s.cur&&s.cur!==BC()&&s.fx?fm(fromBase(v,s.cur,s.fx),s.cur)+' (dólar '+fm(s.fx,'ARS')+')':money(v))+' - '+s.pay};
+function receiptText(s){
+  const left=sum(db.debts.filter(d=>d.sid===s.id),saldo),L=['*'+(CFG().name||'MiApple.Cba')+'* - Comprobante de venta','Fecha: '+fdate(s.date),'Cliente: '+s.cname,''];
+  s.items.forEach(i=>L.push('- '+i.name+(i.qty>1?' x'+i.qty:'')+': '+(i.incl?'sin cargo':money(i.price*i.qty))));
+  (s.canje||[]).forEach(x=>L.push('- Canje '+x.name+' (IMEI '+x.imei+'): -'+money(x.value)));
+  if(s.sena)L.push('- Seña: -'+money(s.sena));
+  L.push('','Total: '+money(s.total),'Pagado: '+paidTxt(s));
+  if(left>0.5)L.push('Saldo pendiente: '+money(left));
+  if(s.warEnd)L.push('','Garantía de '+s.war+' días, hasta el '+fdate(s.warEnd));
+  return L.join('\n');
+}
+function receipt(id){
+  const s=db.sales.find(x=>x.id===id);if(!s)return;
+  const c=db.clients.find(x=>x.id===s.cid)||{},cf=CFG(),left=sum(db.debts.filter(d=>d.sid===id),saldo);
+  const row=(a,b,cls='')=>`<div class="flex justify-between gap-3 py-1 ${cls}"><span>${a}</span><span class="text-right">${b}</span></div>`;
+  modal('Comprobante',`<div id="rcpt"><div class="flex items-center gap-3 mb-3"><img src="${cf.logo||LOGO}" class="w-12 h-12 rounded-xl"><div><div class="font-extrabold text-lg">${esc(cf.name||'MiApple.Cba')}</div><div class="text-xs text-slate-500">Comprobante de venta - ${fdate(s.date)}</div></div></div>
+  <div class="text-sm mb-2"><b>Cliente:</b> ${esc(s.cname)}${c.dni?' - '+esc(c.dni):''}</div><div class="text-sm border-t pt-2">
+  ${s.items.map(i=>row(esc(i.name)+(i.qty>1?' x'+i.qty:''),i.incl?'sin cargo':money(i.price*i.qty))).join('')}
+  ${(s.canje||[]).map(x=>row('Canje: '+esc(x.name)+' (IMEI '+esc(x.imei)+')','-'+money(x.value))).join('')}
+  ${s.sena?row('Seña','-'+money(s.sena)):''}
+  ${row('Total',money(s.total),'font-extrabold border-t mt-1 pt-2')}${row('Pagado',esc(paidTxt(s)))}${left>0.5?row('Saldo pendiente',money(left),'font-bold'):''}</div>
+  ${s.warEnd?`<div class="text-sm mt-3"><b>Garantía:</b> ${s.war} días, hasta el ${fdate(s.warEnd)}.</div><div class="text-xs text-slate-500 mt-1">${esc(cf.terms||TERMS)}</div>`:''}</div>
+  <div class="flex gap-2 mt-4"><button type="button" class="btn" onclick="window.print()"><i data-lucide="printer"></i>Imprimir / PDF</button>${waNum(c.tel)?`<button type="button" class="btn btn-p" onclick="waReceipt('${id}')"><i data-lucide="message-circle"></i>WhatsApp</button>`:''}</div>`);
+}
+function waReceipt(id){const s=db.sales.find(x=>x.id===id),c=db.clients.find(x=>x.id===s.cid)||{};window.open('https://wa.me/'+waNum(c.tel)+'?text='+encodeURIComponent(receiptText(s)),'_blank')}
+function recordar(id){
+  const d=db.debts.find(x=>x.id===id),c=db.clients.find(x=>x.id===d.cid)||db.clients.find(x=>x.name===d.party)||{};
+  if(!waNum(c.tel))return toast('Cargá el teléfono de '+d.party+' en Clientes','err');
+  const s=saldo(d),cq=+d.cuotas>0?Math.min(s,d.total/d.cuotas):s,late=d.venc&&d.venc<today();
+  const eq=x=>fm(x,BC())+(FX()?' (aprox. '+fm(fromBase(x,OC(),FX()),OC())+')':'');
+  const msg='Hola '+(c.name||d.party)+', te escribo de '+(CFG().name||'MiApple.Cba')+'. '+(late?'Te recuerdo que la cuota de '+eq(cq)+' venció el '+fdate(d.venc)+'. ':d.venc?'Te recuerdo que la próxima cuota de '+eq(cq)+' vence el '+fdate(d.venc)+'. ':'Te recuerdo que tenés un saldo pendiente de '+eq(s)+'. ')+(+d.cuotas>0?'Saldo total: '+eq(s)+'. ':'')+'¡Gracias!';
+  window.open('https://wa.me/'+waNum(c.tel)+'?text='+encodeURIComponent(msg),'_blank');
+}
+function revisar(){
+  const hoy=today(),lim=addDays(hoy,7);
+  const gar=db.sales.filter(s=>s.warEnd&&s.warEnd>=hoy&&s.warEnd<=lim).sort((a,b)=>a.warEnd.localeCompare(b.warEnd));
+  const old=db.phones.filter(p=>p.status==='Disponible'&&daysSince(p.date)>30);
+  if(!gar.length&&!old.length)return '';
+  return `<div class="card p-4"><h2 class="font-bold mb-1">Para revisar</h2>${old.length?`<button class="w-full text-left flex justify-between gap-2 text-sm py-2" onclick="go('rep')"><span>${old.length} equipos llevan más de 30 días sin venderse</span><b>${money(sum(old,pcost))}</b></button>`:''}${gar.map(s=>`<button class="w-full text-left flex justify-between gap-2 text-sm py-2 border-t" onclick="receipt('${s.id}')"><span>La garantía de ${esc(s.cname)} vence el ${fdate(s.warEnd)}</span><span class="text-slate-400">Ver</span></button>`).join('')}</div>`;
+}
+V.rep=()=>{
+  const S=db.sales,M={};
+  S.forEach(s=>{const k=(s.date||'').slice(0,7);const o=M[k]=M[k]||{n:0,v:0,g:0};o.n++;o.v+=s.total;o.g+=s.profit});
+  const ks=Object.keys(M).sort().reverse().slice(0,12),mx=Math.max(1,...ks.map(k=>Math.abs(M[k].g)));
+  const mn=k=>{const [y,m]=k.split('-');return ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'][+m-1]+' '+y};
+  const MO={};
+  S.forEach(s=>s.items.filter(i=>i.t==='p').forEach(i=>{const k=i.m||i.name.split(' (IMEI')[0];const o=MO[k]=MO[k]||{n:0,g:0};o.n+=i.qty;o.g+=(i.price-i.cost)*i.qty}));
+  const ml=Object.entries(MO).sort((a,b)=>b[1].g-a[1].g).slice(0,10);
+  const st=db.phones.filter(p=>p.status!=='Vendido').map(p=>({p,d:daysSince(p.date)})).sort((a,b)=>b.d-a.d),old=st.filter(x=>x.d>30);
+  return head('Reportes',`<button class="btn" onclick="go('dash')"><i data-lucide="arrow-left"></i>Volver</button>`)+
+  `<div class="card p-4 mb-3"><h2 class="font-bold mb-2">Ganancia por mes</h2>${ks.length?ks.map(k=>`<div class="py-1.5 text-sm"><div class="flex flex-wrap justify-between gap-x-3"><span class="font-semibold">${mn(k)}</span><span>${M[k].n} ventas - vendiste ${money(M[k].v)} - <b class="text-[#0b7a64]">${money(M[k].g)}</b></span></div><div class="h-1.5 bg-slate-100 rounded mt-1"><div class="h-1.5 rounded bg-[#3346d3]" style="width:${Math.max(0,M[k].g)/mx*100}%"></div></div></div>`).join(''):'<p class="text-sm text-slate-500">Todavía no hay ventas registradas.</p>'}</div>
+  <div class="card p-4 mb-3"><h2 class="font-bold mb-2">Modelos que más ganancia dejan</h2>${ml.length?ml.map(([k,o])=>`<div class="flex justify-between gap-3 py-1.5 border-t first:border-0 text-sm"><span>${esc(k)}</span><span class="whitespace-nowrap">${o.n} vendidos - <b class="text-[#0b7a64]">${money(o.g)}</b> (${money(o.g/o.n)} c/u)</span></div>`).join(''):'<p class="text-sm text-slate-500">Todavía no vendiste celulares.</p>'}</div>
+  <div class="card p-4"><h2 class="font-bold mb-1">Equipos en stock</h2><p class="text-xs text-slate-500 mb-2">${old.length?old.length+' llevan más de 30 días ('+money(sum(old.map(x=>x.p),pcost))+' parados)':'Ninguno lleva más de 30 días.'}</p>${st.length?st.map(({p,d})=>`<div class="flex justify-between gap-3 py-1.5 border-t first:border-0 text-sm"><span>${esc(p.model)} ${esc(p.cap)} <span class="text-xs text-slate-400">${p.status}</span></span><span class="whitespace-nowrap ${d>30?'font-bold text-red-600':''}">${d} días - ${money(pcost(p))}</span></div>`).join(''):'<p class="text-sm text-slate-500">No hay celulares en stock.</p>'}</div>`;
+};
 
 /* ---------- COPIA DE SEGURIDAD ---------- */
 function exportDb(){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(db,null,1)],{type:'application/json'}));a.download='respaldo-'+today()+'.json';a.click()}
