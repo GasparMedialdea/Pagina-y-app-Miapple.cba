@@ -672,13 +672,13 @@ function provList(){
     return `<div class="card p-4 flex flex-col gap-2"><div class="flex justify-between"><div><div class="font-bold">${esc(p.name)}</div><div class="text-xs text-slate-500">${esc(p.cat||'')}${p.city?' - '+esc(p.city):''}</div></div><div class="whitespace-nowrap"><button class="btn-i" onclick="provForm('${p.id}')"><i data-lucide="pencil"></i></button><button class="btn-i" onclick="del('provs','${p.id}')"><i data-lucide="trash-2"></i></button></div></div>
     ${p.contact?`<div class="text-sm">${esc(p.contact)}</div>`:''}${waNum(p.tel)?`<a class="text-sm text-[#3346d3] font-semibold" target="_blank" href="https://wa.me/${waNum(p.tel)}">${esc(p.tel)}</a>`:''}${p.notes?`<div class="text-xs text-slate-500">${esc(p.notes)}</div>`:''}
     <div class="flex flex-wrap gap-x-4 text-xs text-slate-500"><span>Le debés <b class="${deb>0.5?'text-red-600':''}">${money(deb)}</b></span><span>Le compraste <b>${ph.length}</b> equipos (${money(sum(ph,x=>+x.cost||0))})</span></div>
-    <div class="flex justify-between items-center mt-auto pt-2 border-t"><button class="btn" onclick="provDebt('${p.id}')"><i data-lucide="banknote"></i>Anotar deuda</button><button class="btn" onclick="go('red')"><i data-lucide="network"></i>Precios</button></div></div>`}).join('')}</div>`);
+    <div class="flex flex-wrap gap-2 mt-auto pt-2 border-t">${p.lists&&p.lists.length?`<button class="btn btn-p" onclick="lstOpen('${p.id}')"><i data-lucide="table"></i>Ver lista</button>`:''}<button class="btn" onclick="provDebt('${p.id}')"><i data-lucide="banknote"></i>Anotar deuda</button><button class="btn" onclick="go('red')"><i data-lucide="network"></i>Precios</button></div></div>`}).join('')}</div>`);
 }
 function provDebt(id){debtForm('pagar','',db.provs.find(x=>x.id===id).name)}
 function provForm(id){
   const p=db.provs.find(x=>x.id===id)||{};
-  modal(id?'Editar proveedor':'Nuevo proveedor',grid(fld('name','Nombre',p.name,'text',{req:1,full:1})+fld('contact','Persona de contacto',p.contact)+fld('tel','WhatsApp / teléfono',p.tel,'tel')+fld('cat','Rubro',p.cat,'text',{att:'placeholder="iPhones usados, accesorios..."'})+fld('city','Ciudad',p.city)+fld('notes','Notas',p.notes,'text',{full:1})),d=>{
-    d.name=d.name.trim();
+  modal(id?'Editar proveedor':'Nuevo proveedor',grid(fld('name','Nombre',p.name,'text',{req:1,full:1})+fld('contact','Persona de contacto',p.contact)+fld('tel','WhatsApp / teléfono',p.tel,'tel')+fld('cat','Rubro',p.cat,'text',{att:'placeholder="iPhones usados, accesorios..."'})+fld('city','Ciudad',p.city)+fld('notes','Notas',p.notes,'text',{full:1})+`<label class="block col-span-2"><span class="text-slate-500 text-xs font-semibold">Listas de precios (una por línea: Nombre | enlace de Google Sheets)</span><textarea name="lists" rows="3" class="inp mt-1" placeholder="iPhones usados | https://docs.google.com/spreadsheets/d/...">${esc((p.lists||[]).map(l=>l.name+' | '+l.url).join('\n'))}</textarea></label>`),d=>{
+    d.name=d.name.trim();d.lists=parseLists(d.lists);
     if(id)Object.assign(p,d);else db.provs.push({id:uid(),...d});
     save();closeM();render();toast('Proveedor guardado');
   });
@@ -712,6 +712,88 @@ function pedirLista(){
 }
 function pedirWa(id){const p=db.provs.find(x=>x.id===id);window.open('https://wa.me/'+waNum(p.tel)+'?text='+encodeURIComponent('Hola '+(p.contact||p.name)+', te escribo de '+(CFG().name||'MiApple.Cba')+'. ¿Tenés '+ui.pedido+' disponible? ¿A qué precio?'),'_blank')}
 
+/* ---------- LISTAS DE PRECIOS DE PROVEEDORES (Google Sheets) ---------- */
+function parseLists(t){
+  return String(t||'').split('\n').map(l=>l.trim()).filter(Boolean).map((l,i)=>{const k=l.indexOf('|');const nm=k>-1?l.slice(0,k).trim():'',url=(k>-1?l.slice(k+1):l).trim();return {name:nm||'Lista '+(i+1),url}}).filter(x=>/docs\.google\.com\/spreadsheets\/d\//.test(x.url));
+}
+function parseMoney(v){
+  let t=String(v||'').replace(/[^\d.,-]/g,'');if(!t)return 0;
+  const lc=t.lastIndexOf(','),ld=t.lastIndexOf('.');
+  if(lc>-1&&ld>-1)t=lc>ld?t.replace(/\./g,'').replace(',','.'):t.replace(/,/g,'');
+  else if(lc>-1)t=/,\d{1,2}$/.test(t)?t.replace(',','.'):t.replace(/,/g,'');
+  else if(ld>-1)t=/\.\d{1,2}$/.test(t)?t:t.replace(/\./g,'');
+  return parseFloat(t)||0;
+}
+function gvFetch(url){
+  return new Promise((res,rej)=>{
+    const m=url.match(/\/d\/([\w-]+)/);if(!m)return rej(new Error('El enlace no es de Google Sheets'));
+    const g=(url.match(/[#&?]gid=(\d+)/)||[])[1]||'0',cb='__gv'+Date.now(),sc=document.createElement('script');let done=false,t;
+    const end=()=>{done=true;delete window[cb];clearTimeout(t);sc.remove()};
+    t=setTimeout(()=>{if(!done){end();rej(new Error('La hoja no respondió. Revisá que esté compartida con enlace'))}},15000);
+    window[cb]=j=>{end();j&&j.status==='ok'?res(j.table):rej(new Error('No se pudo leer la hoja. Revisá que esté compartida con enlace'))};
+    sc.onerror=()=>{if(!done){end();rej(new Error('No se pudo conectar con Google'))}};
+    sc.src='https://docs.google.com/spreadsheets/d/'+m[1]+'/gviz/tq?gid='+g+'&headers=0&tqx=responseHandler:'+cb;
+    document.head.appendChild(sc);
+  });
+}
+function lstParse(table){
+  const rows=table.rows.map(r=>(r.c||[]).map(c=>c?(c.f!=null?String(c.f):(c.v!=null?String(c.v):'')):'').map(x=>x.trim()));
+  const nz=r=>r.filter(Boolean).length;
+  let h=rows.findIndex(r=>nz(r)>=4&&r.some(x=>/modelo|producto|art[ií]culo|descripci[oó]n|detalle/i.test(x)));
+  if(h<0)h=rows.findIndex(r=>nz(r)>=3);
+  if(h<0)h=0;
+  const info=rows.slice(0,h).flat().filter(Boolean).filter(x=>x.length<120),n=Math.max(0,...rows.map(r=>r.length));
+  const data=rows.slice(h+1).filter(r=>nz(r)>=3),keep=[...Array(n).keys()].filter(j=>(rows[h]||[])[j]||data.some(r=>r[j]));
+  return {hdr:keep.map(j=>(rows[h]||[])[j]||''),rows:data.map(r=>keep.map(j=>r[j]||'')),info};
+}
+const lstKey=(pid,i)=>'cel_lst_'+pid+'_'+i;
+const ago=ts=>{const m=Math.round((Date.now()-ts)/60000);return m<1?'recién':m<60?'hace '+m+' min':m<1440?'hace '+Math.round(m/60)+' h':'hace '+Math.round(m/1440)+' días'};
+function lstOpen(pid,i=0){
+  ui.lst={pid,i,hdr:[],rows:null,info:[],ts:0,loading:false,err:'',q:'',av:true};
+  try{const c=JSON.parse(localStorage.getItem(lstKey(pid,i)));if(c){Object.assign(ui.lst,c)}}catch(e){}
+  ui.tab='lst';render();lstLoad();
+}
+async function lstLoad(){
+  const L=ui.lst,p=db.provs.find(x=>x.id===L.pid),l=p&&(p.lists||[])[L.i];if(!l)return;
+  L.loading=true;L.err='';lstList();
+  try{
+    const d=lstParse(await gvFetch(l.url));
+    Object.assign(L,d,{ts:Date.now()});
+    try{localStorage.setItem(lstKey(L.pid,L.i),JSON.stringify({hdr:d.hdr,rows:d.rows,info:d.info,ts:L.ts}))}catch(e){}
+  }catch(e){L.err=e.message||'No se pudo leer la lista'}
+  L.loading=false;if(ui.tab==='lst'&&ui.lst===L)lstList();
+}
+V.lst=()=>{
+  const L=ui.lst,p=db.provs.find(x=>x.id===L.pid)||{lists:[]};
+  return head(esc(p.name),`<button class="btn" onclick="go('prov')"><i data-lucide="arrow-left"></i>Volver</button><button class="btn" onclick="lstLoad()"><i data-lucide="refresh-cw"></i>Actualizar</button>`)+
+  ((p.lists||[]).length>1?`<div class="flex flex-wrap gap-2 mb-3">${p.lists.map((l,i)=>`<button class="btn ${i===L.i?'btn-p':''}" onclick="lstOpen('${p.id}',${i})">${esc(l.name)}</button>`).join('')}</div>`:'')+
+  `<div class="flex flex-wrap items-center gap-3 mb-2"><input class="inp !w-auto flex-1 min-w-[180px]" placeholder="Buscar modelo, color, IMEI..." value="${esc(L.q)}" oninput="ui.lst.q=this.value;lstList()"><label class="flex items-center gap-2 text-sm"><input type="checkbox" ${L.av?'checked':''} onchange="ui.lst.av=this.checked;lstList()">Solo disponibles</label></div><div id="lstmsg" class="text-xs text-slate-500 mb-2"></div><div id="list"></div>`;
+};
+function lstList(){
+  const L=ui.lst;if(!L||ui.tab!=='lst'||!$('#list'))return;
+  const msg=L.loading?'Actualizando lista...':L.err?'<span class="text-red-600 font-semibold">'+esc(L.err)+'</span>'+(L.rows?' Se muestra la última copia guardada ('+ago(L.ts)+').':''):L.ts?'Actualizada '+ago(L.ts):'';
+  $('#lstmsg').innerHTML=msg;
+  if(!L.rows)return setH('#list',`<div class="card p-8 text-center text-slate-500 text-sm">${L.loading?'Cargando...':'No se pudo cargar la lista. Revisá que el enlace esté compartido con «cualquiera con el enlace puede ver» y tocá Actualizar.'}</div>`);
+  const q=L.q.toLowerCase(),sc=L.hdr.findIndex(h=>/stock|disponib/i.test(h)),pc=L.hdr.findIndex(h=>/precio|price/i.test(h));
+  const no=/vendid|servicio|agotad|sin stock/i;
+  const idx=L.rows.map((r,i)=>i).filter(i=>{const r=L.rows[i];return (!q||r.join(' ').toLowerCase().includes(q))&&(!L.av||sc<0||!no.test(r[sc]||''))});
+  const avail=sc<0?L.rows.length:L.rows.filter(r=>!no.test(r[sc]||'')).length,shown=idx.slice(0,300);
+  setH('#list',`<div class="text-xs text-slate-500 mb-2">${L.rows.length} productos en la lista${sc<0?'':', '+avail+' disponibles'}. Coinciden ${idx.length}${idx.length>300?' (se muestran 300, afiná la búsqueda)':''}.</div>
+  ${(L.info||[]).length?`<details class="text-xs text-slate-500 mb-2"><summary class="cursor-pointer">Información del proveedor</summary><div class="mt-1">${L.info.map(esc).join('<br>')}</div></details>`:''}
+  <div class="card overflow-x-auto"><table class="w-full"><thead><tr>${L.hdr.map(h=>`<th>${esc(h)}</th>`).join('')}${pc>-1&&FX()?'<th>En pesos</th>':''}<th></th></tr></thead><tbody>${shown.map(i=>{const r=L.rows[i],s=pc>-1?r[pc]:'',usd=/usd|u\$s/i.test(s);
+    return `<tr>${r.map((c,j)=>`<td class="${j===pc?'font-semibold':''} ${j===sc&&no.test(c)?'text-slate-400':''}">${esc(c)}</td>`).join('')}${pc>-1&&FX()?`<td class="whitespace-nowrap">${usd&&parseMoney(s)?fm(parseMoney(s)*FX(),'ARS'):''}</td>`:''}<td><button class="btn-i" title="Anotar como cotización" onclick="lstQuote(${i})"><i data-lucide="plus-circle"></i></button></td></tr>`}).join('')}</tbody></table></div>`);
+}
+function lstQuote(i){
+  const L=ui.lst,r=L.rows[i],p=db.provs.find(x=>x.id===L.pid),pc=L.hdr.findIndex(h=>/precio|price/i.test(h));
+  const s=pc>-1?r[pc]:'',n=parseMoney(s);
+  if(!(n>0))return toast('No pude leer el precio de esa fila','err');
+  const cur=/usd|u\$s/i.test(s)?'USD':'ARS';let a=n;
+  if(cur!==BC()){if(!FX())return toast('Cargá la cotización del dólar','err');a=toBase(n,cur,FX())}
+  const model=r.slice(0,3).filter(Boolean).join(' '),note=r.filter((v,j)=>v&&/bater|imei/i.test(L.hdr[j]||'')).map((v,j)=>v).join(' - ');
+  db.quotes.push({id:uid(),model,prov:p.name,price:a,raw:n,cur,fx:cur!==BC()?FX():0,date:today(),note});
+  save();toast('Cotización anotada en Red de proveedores');
+}
+
 /* ---------- COPIA DE SEGURIDAD ---------- */
 function exportDb(){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(db,null,1)],{type:'application/json'}));a.download='respaldo-'+today()+'.json';a.click()}
 function importDb(i){
@@ -722,7 +804,7 @@ function importDb(i){
 
 function render(){
   nav();setBrand();$('#main').innerHTML=V[ui.tab]();
-  ({inv:invList,cli:cliList,srv:srvList,prov:provList,red:redList,pos:()=>{posRes();posCart();setH('#hist',db.sales.length?db.sales.slice(0,10).map(s=>saleRow(s,1)).join(''):'<p class="text-sm text-slate-500 py-4">Sin ventas registradas.</p>')}})[ui.tab]?.();
+  ({inv:invList,cli:cliList,lst:lstList,srv:srvList,prov:provList,red:redList,pos:()=>{posRes();posCart();setH('#hist',db.sales.length?db.sales.slice(0,10).map(s=>saleRow(s,1)).join(''):'<p class="text-sm text-slate-500 py-4">Sin ventas registradas.</p>')}})[ui.tab]?.();
   lucide.createIcons();
 }
 if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js');
