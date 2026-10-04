@@ -6,6 +6,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#3346d3">
+<script>try{if((localStorage.getItem('cel_theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'))==='dark')document.documentElement.classList.add('dark')}catch(e){}</script>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="MiApple.Cba">
@@ -25,16 +26,47 @@ body{font-family:'Plus Jakarta Sans',system-ui,sans-serif;background:#eef1f5;col
 .k-Disponible{background:#dcf5ee;color:#0b7a64}.k-Reservado{background:#fdf0d1;color:#8a5a00}.k-Vendido{background:#e8ebf0;color:#5b6675}
 th{font-weight:600;text-align:left;font-size:.75rem;color:#64748b;padding:.6rem .75rem}
 td{padding:.6rem .75rem;border-top:1px solid #eef1f5;font-size:.88rem}
-:root{color-scheme:light}#bn{padding-bottom:env(safe-area-inset-bottom,0px)}
+:root{color-scheme:light}
+html.dark{color-scheme:dark}
+html.dark body{background:#0f1420;color:#e5e9f2}
+html.dark .bg-white,html.dark aside,html.dark nav{background:#171d2b!important}
+html.dark .bg-\[\#eef1f5\]{background:#0f1420!important}
+html.dark .card{background:#171d2b;border-color:#262e42}
+html.dark .inp,html.dark .btn{background:#1d2535;border-color:#2c3650;color:#e5e9f2}
+html.dark .btn:hover,html.dark .btn-i:hover{background:#252f45}
+html.dark .btn-p{background:#3346d3;border-color:#3346d3;color:#fff}
+html.dark .text-slate-800,html.dark .text-slate-700{color:#e5e9f2!important}
+html.dark .text-slate-600{color:#b8c0d2!important}
+html.dark .text-slate-500,html.dark th{color:#98a2b8!important}
+html.dark .text-slate-400{color:#7d879d!important}
+html.dark .bg-slate-100{background:#252f45!important}
+html.dark .hover\:bg-slate-50:hover{background:#1d2535!important}
+html.dark .border,html.dark .border-t,html.dark .border-r,html.dark .border-b,html.dark td{border-color:#262e42!important}
+html.dark .bg-\[\#eceefc\]{background:#232c4f!important}
+html.dark .text-\[\#3346d3\]{color:#9fb0ff!important}
+html.dark .text-\[\#0b7a64\]{color:#4fd1b1!important}
+html.dark .text-red-600{color:#ff8a8a!important}
+html.dark .k-Disponible{background:#12392f;color:#5ee0bd}
+html.dark .k-Reservado{background:#40331a;color:#f0c46c}
+html.dark .k-Vendido{background:#2a3140;color:#9aa4b8}
+html.dark [style*="#fde2e2"]{background:#4a1f24!important;color:#ffb4b4!important}
+html.dark [style*="#e6e9fb"]{background:#232c4f!important;color:#aab6ff!important}
+html.dark [style*="#fdf0d1"]{background:#40331a!important;color:#f0c46c!important}
+html.dark .\!bg-\[\#fdf0d1\]{background:#3a3016!important}
+html.dark .\!border-\[\#f0d38a\]{border-color:#6b5a22!important}
+html.dark .\!bg-\[\#fde2e2\]{background:#3d1d22!important}
+html.dark .\!border-\[\#f0b3b3\]{border-color:#7a3a40!important}#bn{padding-bottom:env(safe-area-inset-bottom,0px)}
 :focus-visible{outline:2px solid #3346d3;outline-offset:2px}
-@media print{body *{visibility:hidden}#rcpt,#rcpt *{visibility:visible}#rcpt{position:absolute;left:0;top:0;width:100%;padding:16px}#mf{max-height:none!important;overflow:visible!important}}
+@media print{body *{visibility:hidden}#rcpt,#rcpt *{visibility:visible}#rcpt{position:absolute;left:0;top:0;width:100%;padding:16px}#mf{max-height:none!important;overflow:visible!important}html.dark #rcpt,html.dark #rcpt *{color:#000!important}}
 </style></head>
 <body>
-<aside class="hidden md:flex fixed h-full w-56 flex-col gap-1 bg-white border-r p-4">
-  <div id="brand" class="flex items-center gap-2 font-extrabold text-lg mb-4 text-[#3346d3]"></div>
-  <div id="sn" class="flex flex-col gap-1"></div>
+<aside class="hidden md:flex fixed h-full w-64 flex-col gap-1 bg-white border-r p-4 overflow-y-auto">
+  <div id="brand" class="flex items-center gap-2 font-extrabold text-lg mb-2 text-[#3346d3]"></div>
+  <button id="fxbox" onclick="fxForm()" class="text-left rounded-xl border p-3 mb-2"></button>
+  <div id="sn" class="flex flex-col gap-0.5"></div>
+  <div class="mt-auto pt-3"><button id="thbtn" class="btn w-full justify-center mb-2" onclick="toggleTheme()"></button><div class="rounded-xl border p-3 text-xs"><div class="flex items-center gap-2 font-semibold"><span class="w-2 h-2 rounded-full bg-emerald-500"></span>Sistema activo</div><div id="sbs" class="text-slate-500 mt-1"></div></div></div>
 </aside>
-<main id="main" class="md:ml-56 px-4 pt-11 md:px-8 md:pt-10 pb-24 md:pb-8 max-w-6xl"></main>
+<main id="main" class="md:ml-64 px-4 pt-11 md:px-8 md:pt-10 pb-24 md:pb-8 max-w-6xl"></main>
 <nav id="bn" class="md:hidden fixed bottom-0 inset-x-0 bg-white border-t grid grid-cols-5 z-40"></nav>
 <div id="login" class="hidden fixed inset-0 z-[70] bg-[#eef1f5] flex items-center justify-center p-6"><form onsubmit="doLogin(event)" class="card p-6 w-full max-w-sm space-y-3"><div class="flex items-center gap-2 font-extrabold text-xl text-slate-800"><img src="data:image/png;base64,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" class="w-10 h-10 rounded-xl">MiApple.Cba</div><input id="lem" type="email" autocomplete="username" class="inp" placeholder="Email" required><input id="lpw" type="password" autocomplete="current-password" class="inp" placeholder="Contraseña" required><p id="lerr" class="text-sm text-red-600"></p><button class="btn btn-p w-full justify-center !py-3">Entrar</button></form></div>
 <div id="modal"></div>
@@ -54,7 +86,7 @@ const fromBase=(n,cur,fx)=>cur===BC()?n:(BC()==='USD'?n*fx:n/fx);
 const curName=c=>c==='ARS'?'pesos':'dólares';
 const fdate=d=>d?d.slice(0,10).split('-').reverse().join('/'):'';
 let db=(()=>{try{return JSON.parse(localStorage.getItem('cel_db'))}catch(e){}})()||{phones:[],acc:[],clients:[],sales:[]};
-const COLS=['phones','acc','clients','sales','debts','moves','cfg'];
+const COLS=['phones','acc','clients','sales','debts','moves','cfg','srv','provs','quotes'];
 let cloud=null,q=Promise.resolve(),synced=Object.fromEntries(COLS.map(c=>[c,{}]));
 COLS.forEach(c=>db[c]=db[c]||[]);
 const CFG=()=>db.cfg[0]||(db.cfg[0]={id:'main'});
@@ -68,9 +100,9 @@ const addDays=(d,n)=>{const x=new Date(d+'T12:00:00');x.setDate(x.getDate()+n);r
 const daysSince=d=>d?Math.max(0,Math.floor((new Date(today()+'T12:00:00')-new Date(d.slice(0,10)+'T12:00:00'))/864e5)):0;
 const waNum=t=>{const d=String(t||'').replace(/\D/g,'');return d?(d.startsWith('54')?d:'549'+d.replace(/^0+/,'')):''};
 const TERMS='La garantía cubre fallas de funcionamiento del equipo. No cubre golpes, humedad, equipos abiertos o reparados por terceros, ni software modificado.';
-const cajaBase=()=>sum(db.sales,s=>s.profit)-stockCost()-sum(pend('cobrar'),saldo)+sum(pend('pagar'),saldo)-sum(db.moves,m=>m.amount)+senas();
+const cajaBase=()=>sum(db.sales,s=>s.profit)-stockCost()-sum(pend('cobrar'),saldo)+sum(pend('pagar'),saldo)-sum(db.moves,m=>m.amount)+senas()+sum(db.srv,o=>sum(o.pays||[],p=>p.amount)-(+o.cost||0));
 const caja=()=>(CFG().ajuste||0)+cajaBase();
-const setSync=(t,ok)=>{const e=$('#sync');e.textContent=t;e.style.color=ok?'#0b7a64':'#64748b'};
+const setSync=(t,ok)=>{const e=$('#sync');e.textContent=t;e.style.color=ok?'#0b7a64':'#64748b';const s2=$('#sbs');if(s2)s2.textContent=t};
 const keep=()=>localStorage.setItem('cel_db',JSON.stringify(db));
 const save=()=>{keep();push()};
 const wErr=e=>{setSync('Error al sincronizar',0);toast(e&&e.code==='permission-denied'?'Tu usuario solo puede ver los datos. Revisá que tu email esté habilitado en las reglas.':'No se pudo sincronizar. Revisá la conexión.','err')};
@@ -104,7 +136,7 @@ async function doLogin(e){e.preventDefault();$('#lerr').textContent='';try{await
 async function salir(){if(!confirm('¿Cerrar sesión? Se borran los datos guardados en este dispositivo (siguen en la nube).'))return;await cloudAPI.logout();localStorage.removeItem('cel_db');location.reload()}
 let booted=false;
 function boot(){
-  if(booted)return;booted=true;lucide.createIcons();
+  if(booted)return;booted=true;applyTheme();lucide.createIcons();
   setInterval(()=>autoFx(),6e5);document.addEventListener('visibilitychange',()=>{if(!document.hidden)autoFx()});
   if(!window.cloudAPI){render();autoFx();return}
   cloudAPI.onAuth(u=>{if(u){$('#login').classList.add('hidden');render();startSync()}else $('#login').classList.remove('hidden')});
@@ -112,14 +144,18 @@ function boot(){
 setSync('Guardado en este dispositivo',0);
 const ui={tab:'dash',inv:'phones',q:'',st:'',cq:'',sq:'',cart:[],cid:'',cin:'',pay:'Efectivo',paid:'',cuo:'',venc:'',cur:'',fxs:'',canje:[],war:''};
 const ST=['Disponible','Reservado','Vendido'],COND=['Nuevo','Usado','Grado A','Grado B'],PAY=['Efectivo','Transferencia','Tarjeta','USDT','Otro'];
-const TABS=[['dash','Resumen','layout-dashboard'],['inv','Inventario','smartphone'],['cli','Clientes','users'],['pos','Ventas','shopping-cart'],['fin','Deudas','banknote']];
+const TABS=[['dash','Dashboard','Resumen general','layout-dashboard'],['rep','Analíticas','Métricas y reportes','bar-chart-3'],['pos','Ventas','Gestión de ventas','shopping-cart'],['inv','Inventario','Stock de dispositivos','smartphone'],['srv','Reparaciones','Servicio técnico','wrench'],['prov','Proveedores','Gestión de proveedores','truck'],['red','Red de proveedores','Precios y pedidos','network'],['cli','Clientes','Base de clientes','users'],['fin','Deudas','Cobros y pagos','banknote']],MAIN=['dash','pos','inv','cli'];
 const cl=c=>c.name+(c.dni?' - '+c.dni:'');
 const setH=(s,h)=>{$(s).innerHTML=h;lucide.createIcons()};
-const go=k=>{ui.tab=k;render()};
+const go=k=>{ui.tab=k;ui.q='';ui.st='';ui.cq='';render()};
 
 function nav(){
-  const h=m=>TABS.map(([k,l,i])=>`<button onclick="go('${k}')" class="${m?'flex flex-col items-center gap-0.5 py-2 text-[11px]':'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm w-full text-left'} font-semibold ${ui.tab===k?(m?'text-[#3346d3]':'bg-[#eceefc] text-[#3346d3]'):'text-slate-500 hover:text-slate-800'}"><i data-lucide="${i}"></i>${l}</button>`).join('');
-  $('#sn').innerHTML=h(0);$('#bn').innerHTML=h(1);
+  $('#sn').innerHTML=TABS.map(([k,l,sub,ic])=>`<button onclick="go('${k}')" class="flex items-center gap-3 px-3 py-2 rounded-lg w-full text-left ${ui.tab===k?'bg-[#eceefc] text-[#3346d3]':'text-slate-500 hover:text-slate-800'}"><i data-lucide="${ic}"></i><span><span class="block text-sm font-semibold">${l}</span><span class="block text-[11px] opacity-70">${sub}</span></span></button>`).join('');
+  const b=k=>{const t=TABS.find(x=>x[0]===k);return `<button onclick="go('${k}')" class="flex flex-col items-center gap-0.5 py-2 text-[11px] font-semibold ${ui.tab===k?'text-[#3346d3]':'text-slate-500'}"><i data-lucide="${t[3]}"></i>${t[1]}</button>`};
+  $('#bn').innerHTML=MAIN.map(b).join('')+`<button onclick="menuMas()" class="flex flex-col items-center gap-0.5 py-2 text-[11px] font-semibold ${MAIN.includes(ui.tab)?'text-slate-500':'text-[#3346d3]'}"><i data-lucide="menu"></i>Más</button>`;
+  const c=CFG(),hr=c.fxAt?new Date(c.fxAt).toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}):'';
+  $('#fxbox').innerHTML=FX()?`<div class="flex justify-between text-xs"><span class="font-semibold">Dólar ${c.fxAuto?(c.fxSrc==='infodolar'?'Blue Córdoba':(c.fxType||'blue')):'manual'}</span><span class="text-slate-400">${hr}</span></div><div class="text-xl font-extrabold mt-1">${fm(FX(),'ARS')}</div><div class="text-[11px] text-slate-500">${c.fxSide==='compra'?'Compra':'Venta'}${c.fxAuto?' - automático':''}</div>`:'<div class="text-sm font-semibold">Cargar cotización del dólar</div>';
+  $('#thbtn').innerHTML=`<i data-lucide="${isDark()?'sun':'moon'}"></i>${isDark()?'Modo claro':'Modo oscuro'}`;
 }
 const head=(t,a='')=>`<div class="flex items-center justify-between mb-5 gap-2 flex-wrap"><h1 class="text-2xl font-extrabold">${t}</h1><div class="flex gap-2">${a}</div></div>`;
 let tt;function toast(m,e){const t=$('#toast');t.innerHTML=`<div class="px-4 py-2.5 rounded-lg text-sm font-semibold text-white shadow-lg ${e?'bg-red-600':'bg-slate-900'}">${m}</div>`;clearTimeout(tt);tt=setTimeout(()=>t.innerHTML='',2800)}
@@ -144,10 +180,10 @@ V.dash=()=>{
   const low=db.acc.filter(x=>x.stock<=x.min);
   const vencidas=pend('cobrar').filter(d=>d.venc&&d.venc<today()).length;
   const card=(l,v,s,ic,c='')=>`<div class="card p-4 ${c}"><div class="flex justify-between text-sm font-semibold opacity-75">${l}<i data-lucide="${ic}"></i></div><div class="text-2xl font-extrabold mt-2">${v}</div><div class="text-xs opacity-75 mt-1">${s}</div></div>`;
-  return head('Resumen',`<button class="btn" onclick="go('rep')"><i data-lucide="bar-chart-3"></i>Reportes</button><button class="btn" onclick="fxForm()"><i data-lucide="dollar-sign"></i>${fxLabel()}</button><button class="btn" onclick="cfgForm()"><i data-lucide="settings"></i>Ajustes</button><button class="btn" onclick="exportDb()"><i data-lucide="download"></i>Exportar copia</button><label class="btn cursor-pointer"><i data-lucide="upload"></i>Importar<input type="file" accept=".json" class="hidden" onchange="importDb(this)"></label>${window.cloudAPI?'<button class="btn" onclick="salir()">Salir</button>':''}`)+
+  return head('Resumen',`<button class="btn" onclick="toggleTheme()"><i data-lucide="${isDark()?'sun':'moon'}"></i>${isDark()?'Claro':'Oscuro'}</button><button class="btn" onclick="fxForm()"><i data-lucide="dollar-sign"></i>${fxLabel()}</button><button class="btn" onclick="cfgForm()"><i data-lucide="settings"></i>Ajustes</button><button class="btn" onclick="exportDb()"><i data-lucide="download"></i>Exportar copia</button><label class="btn cursor-pointer"><i data-lucide="upload"></i>Importar<input type="file" accept=".json" class="hidden" onchange="importDb(this)"></label>${window.cloudAPI?'<button class="btn" onclick="salir()">Salir</button>':''}`)+
   `<div class="grid grid-cols-2 xl:grid-cols-4 gap-3">`+
-  card('Capital en stock',money(cap),`${ph.length} celulares y ${nAcc} accesorios`,'wallet')+
-  card('Valor de venta estimado',money(est),'Ganancia potencial: '+money(est-cap),'tag')+
+  sBtn(card('Capital en stock',money(cap),`${ph.length} celulares y ${nAcc} accesorios`,'wallet'))+
+  sBtn(card('Valor de venta estimado',money(est),'Ganancia potencial: '+money(est-cap),'tag'))+
   `<button class="text-left [&>div]:h-full" onclick="gananciaInfo()">`+card('Ganancia neta acumulada',money(gan),db.sales.length+' ventas - tocá para ver el detalle','trending-up','!bg-[#3346d3] !text-white !border-[#3346d3]')+`</button>`+
   `<button class="text-left [&>div]:h-full" onclick="lowInfo()">`+card('Stock bajo',low.length,low.length?'Tocá para ver cuáles':'Todo en orden','alert-triangle',low.length?'!bg-[#fdf0d1] !border-[#f0d38a]':'')+`</button>`+`</div><div class="grid md:grid-cols-3 gap-3 mt-3">`+
   `<button class="text-left [&>div]:h-full" onclick="ajusteForm()">`+card('Plata para invertir',money(caja())+`<div class="text-lg font-bold opacity-90 mt-0.5">`+(FX()?'= '+fm(fromBase(caja(),OC(),FX()),OC()):'Cargá el dólar para ver la otra moneda')+`</div>`,'Estimada. Tocá para ajustarla','banknote','!bg-[#0b7a64] !text-white !border-[#0b7a64]')+`</button>`+
@@ -185,7 +221,7 @@ function phoneForm(id){
     fld('cap','Capacidad',p.cap,'text',{att:'placeholder="128GB"'})+fld('bat','Salud de batería (%)',p.bat,'number',{att:'max="100"'})+
     fld('color','Color',p.color)+fld('cond','Condición',p.cond,'select',{opts:COND})+
     fld('cost','Costo ('+BC()+')',p.cost,'number',{req:1})+fld('price','Precio de venta ('+BC()+')',p.price,'number',{req:1})+
-    fld('supplier','Proveedor',p.supplier)+fld('date','Fecha de ingreso',p.date,'date')+
+    fld('supplier','Proveedor',p.supplier,'text',{att:'list="dlp"'})+`<datalist id="dlp">${provNames()}</datalist>`+fld('date','Fecha de ingreso',p.date,'date')+
     fld('status','Estado',p.status,'select',{opts:ST,full:1}),
   ),d=>{
     d.imei=d.imei.trim();
@@ -339,9 +375,9 @@ function debtCard(d){
   <div class="flex flex-wrap gap-x-3 text-xs text-slate-500 mt-2">${cq?`<span>Cuota de ${money(cq)} - pagó ${Math.floor(pg/cq+1e-6)} de ${d.cuotas}</span>`:''}${d.venc&&s>0.5?`<span class="${late?'font-bold text-red-600':''}">${late?'Vencida ':'Vence '}${fdate(d.venc)}</span>`:''}</div>
   <div class="flex justify-between items-center mt-2 pt-2 border-t"><button class="btn disabled:opacity-40" onclick="payForm('${d.id}')" ${s>0.5?'':'disabled'}><i data-lucide="check"></i>${d.kind==='cobrar'?'Registrar cobro':'Registrar pago'}</button><span class="whitespace-nowrap">${d.kind==='cobrar'&&s>0.5?`<button class="btn-i" title="Recordar por WhatsApp" onclick="recordar('${d.id}')"><i data-lucide="message-circle"></i></button>`:''}<button class="btn-i" title="Ver pagos" onclick="payHist('${d.id}')"><i data-lucide="list"></i></button><button class="btn-i" title="Editar" onclick="debtForm('${d.kind}','${d.id}')"><i data-lucide="pencil"></i></button><button class="btn-i" title="Eliminar" onclick="del('debts','${d.id}')"><i data-lucide="trash-2"></i></button></span></div></div>`;
 }
-function debtForm(k,id){
-  const d=db.debts.find(x=>x.id===id)||{date:today()},C=k==='cobrar';
-  const names=C?db.clients.map(c=>c.name):[...new Set(db.phones.map(p=>p.supplier).filter(Boolean))];
+function debtForm(k,id,pty){
+  const d=db.debts.find(x=>x.id===id)||{date:today(),party:pty||''},C=k==='cobrar';
+  const names=C?db.clients.map(c=>c.name):[...new Set([...db.provs.map(p=>p.name),...db.phones.map(p=>p.supplier).filter(Boolean)])];
   modal((id?'Editar ':'Nueva ')+(C?'cuenta a cobrar':'deuda con proveedor'),grid(
     `<label class="block col-span-2"><span class="text-slate-500 text-xs font-semibold">${C?'Cliente':'Proveedor'}</span><input name="party" list="dl" value="${esc(d.party)}" required class="inp mt-1"><datalist id="dl">${names.map(n=>`<option value="${esc(n)}">`).join('')}</datalist></label>`+
     fld('desc','Detalle',d.desc,'text',{full:1,att:'placeholder="iPhone 13 Pro en cuotas"'})+
@@ -526,8 +562,9 @@ function revisar(){
   const hoy=today(),lim=addDays(hoy,7);
   const gar=db.sales.filter(s=>s.warEnd&&s.warEnd>=hoy&&s.warEnd<=lim).sort((a,b)=>a.warEnd.localeCompare(b.warEnd));
   const old=db.phones.filter(p=>p.status==='Disponible'&&daysSince(p.date)>30);
-  if(!gar.length&&!old.length)return '';
-  return `<div class="card p-4"><h2 class="font-bold mb-1">Para revisar</h2>${old.length?`<button class="w-full text-left flex justify-between gap-2 text-sm py-2" onclick="go('rep')"><span>${old.length} equipos llevan más de 30 días sin venderse</span><b>${money(sum(old,pcost))}</b></button>`:''}${gar.map(s=>`<button class="w-full text-left flex justify-between gap-2 text-sm py-2 border-t" onclick="receipt('${s.id}')"><span>La garantía de ${esc(s.cname)} vence el ${fdate(s.warEnd)}</span><span class="text-slate-400">Ver</span></button>`).join('')}</div>`;
+  const lis=db.srv.filter(o=>o.status==='Listo');
+  if(!gar.length&&!old.length&&!lis.length)return '';
+  return `<div class="card p-4"><h2 class="font-bold mb-1">Para revisar</h2>${lis.length?`<button class="w-full text-left flex justify-between gap-2 text-sm py-2" onclick="go('srv')"><span>${lis.length} reparaciones listas para entregar</span><span class="text-slate-400">Ver</span></button>`:''}${old.length?`<button class="w-full text-left flex justify-between gap-2 text-sm py-2" onclick="go('rep')"><span>${old.length} equipos llevan más de 30 días sin venderse</span><b>${money(sum(old,pcost))}</b></button>`:''}${gar.map(s=>`<button class="w-full text-left flex justify-between gap-2 text-sm py-2 border-t" onclick="receipt('${s.id}')"><span>La garantía de ${esc(s.cname)} vence el ${fdate(s.warEnd)}</span><span class="text-slate-400">Ver</span></button>`).join('')}</div>`;
 }
 V.rep=()=>{
   const S=db.sales,M={};
@@ -538,11 +575,142 @@ V.rep=()=>{
   S.forEach(s=>s.items.filter(i=>i.t==='p').forEach(i=>{const k=i.m||i.name.split(' (IMEI')[0];const o=MO[k]=MO[k]||{n:0,g:0};o.n+=i.qty;o.g+=(i.price-i.cost)*i.qty}));
   const ml=Object.entries(MO).sort((a,b)=>b[1].g-a[1].g).slice(0,10);
   const st=db.phones.filter(p=>p.status!=='Vendido').map(p=>({p,d:daysSince(p.date)})).sort((a,b)=>b.d-a.d),old=st.filter(x=>x.d>30);
-  return head('Reportes',`<button class="btn" onclick="go('dash')"><i data-lucide="arrow-left"></i>Volver</button>`)+
+  return head('Analíticas',`<button class="btn" onclick="go('dash')"><i data-lucide="arrow-left"></i>Volver</button>`)+
   `<div class="card p-4 mb-3"><h2 class="font-bold mb-2">Ganancia por mes</h2>${ks.length?ks.map(k=>`<div class="py-1.5 text-sm"><div class="flex flex-wrap justify-between gap-x-3"><span class="font-semibold">${mn(k)}</span><span>${M[k].n} ventas - vendiste ${money(M[k].v)} - <b class="text-[#0b7a64]">${money(M[k].g)}</b></span></div><div class="h-1.5 bg-slate-100 rounded mt-1"><div class="h-1.5 rounded bg-[#3346d3]" style="width:${Math.max(0,M[k].g)/mx*100}%"></div></div></div>`).join(''):'<p class="text-sm text-slate-500">Todavía no hay ventas registradas.</p>'}</div>
   <div class="card p-4 mb-3"><h2 class="font-bold mb-2">Modelos que más ganancia dejan</h2>${ml.length?ml.map(([k,o])=>`<div class="flex justify-between gap-3 py-1.5 border-t first:border-0 text-sm"><span>${esc(k)}</span><span class="whitespace-nowrap">${o.n} vendidos - <b class="text-[#0b7a64]">${money(o.g)}</b> (${money(o.g/o.n)} c/u)</span></div>`).join(''):'<p class="text-sm text-slate-500">Todavía no vendiste celulares.</p>'}</div>
   <div class="card p-4"><h2 class="font-bold mb-1">Equipos en stock</h2><p class="text-xs text-slate-500 mb-2">${old.length?old.length+' llevan más de 30 días ('+money(sum(old.map(x=>x.p),pcost))+' parados)':'Ninguno lleva más de 30 días.'}</p>${st.length?st.map(({p,d})=>`<div class="flex justify-between gap-3 py-1.5 border-t first:border-0 text-sm"><span>${esc(p.model)} ${esc(p.cap)} <span class="text-xs text-slate-400">${p.status}</span></span><span class="whitespace-nowrap ${d>30?'font-bold text-red-600':''}">${d} días - ${money(pcost(p))}</span></div>`).join(''):'<p class="text-sm text-slate-500">No hay celulares en stock.</p>'}</div>`;
 };
+
+/* ---------- TEMA, STOCK, MES, SERVICIO TÉCNICO, PROVEEDORES ---------- */
+const isDark=()=>document.documentElement.classList.contains('dark');
+function applyTheme(){const t=localStorage.getItem('cel_theme')||(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.classList.toggle('dark',t==='dark');const m=document.querySelector('meta[name=theme-color]');if(m)m.content=t==='dark'?'#0f1420':'#3346d3'}
+function toggleTheme(){localStorage.setItem('cel_theme',isDark()?'light':'dark');applyTheme();render()}
+const sBtn=h=>`<button class="text-left [&>div]:h-full" onclick="stockInfo()">${h}</button>`;
+function menuMas(){
+  modal('Menú',TABS.filter(t=>!MAIN.includes(t[0])).map(t=>`<button type="button" class="w-full flex items-center gap-3 py-3 border-t first:border-0 text-left" onclick="closeM();go('${t[0]}')"><i data-lucide="${t[3]}"></i><span><span class="block font-semibold text-sm">${t[1]}</span><span class="block text-xs text-slate-500">${t[2]}</span></span></button>`).join('')+`<button type="button" class="btn w-full justify-center mt-3" onclick="closeM();toggleTheme()"><i data-lucide="${isDark()?'sun':'moon'}"></i>${isDark()?'Modo claro':'Modo oscuro'}</button>`);
+}
+function stockInfo(){
+  const ph=db.phones.filter(p=>p.status!=='Vendido').sort((a,b)=>pcost(b)-pcost(a)),sa=db.acc.filter(a=>!a.incl&&a.stock>0),ic=db.acc.filter(a=>a.incl&&a.stock>0);
+  const cap=sum(ph,pcost)+sum(sa,a=>a.stock*a.cost),est=sum(ph,p=>p.price)+sum(sa,a=>a.stock*a.price);
+  const box=(l,v,c='')=>`<div class="card p-2.5"><div class="text-[11px] text-slate-500">${l}</div><div class="font-extrabold text-sm ${c}">${v}</div></div>`;
+  const row=(a,b)=>`<div class="flex justify-between gap-3 py-2 border-t first:border-0 text-sm"><div>${a}</div><div class="text-right whitespace-nowrap">${b}</div></div>`;
+  modal('¿Qué tengo en stock?',`<p class="text-sm text-slate-600 mb-3">El capital es lo que te costó cada equipo (con sus arreglos) y cada accesorio que todavía no vendiste.</p>
+  <div class="grid grid-cols-3 gap-2 mb-1">${box('Capital',money(cap))}${box('Valor de venta',money(est))}${box('Ganancia potencial',money(est-cap),'text-[#0b7a64]')}</div>
+  ${FX()?`<p class="text-xs text-slate-500 mb-3">El capital equivale a ${fm(fromBase(cap,OC(),FX()),OC())} al dólar de hoy.</p>`:'<div class="mb-3"></div>'}
+  <h3 class="font-bold text-sm mt-2">Celulares (${ph.length})</h3>${ph.length?ph.map(p=>row(`<div class="font-semibold">${esc(p.model)} ${esc(p.cap)}</div><div class="text-xs text-slate-500">IMEI ${esc(p.imei)} - ${p.status} - ${daysSince(p.date)} días</div>`,`<div>${money(pcost(p))}</div><div class="text-xs text-slate-500">venta ${money(p.price)}</div>`)).join(''):'<p class="text-sm text-slate-500 py-2">No hay celulares en stock.</p>'}
+  <h3 class="font-bold text-sm mt-4">Accesorios (${sa.length})</h3>${sa.length?sa.map(a=>row(`<div class="font-semibold">${esc(a.name)}</div><div class="text-xs text-slate-500">${a.stock} unidades</div>`,`<div>${money(a.stock*a.cost)}</div><div class="text-xs text-slate-500">venta ${money(a.stock*a.price)}</div>`)).join(''):'<p class="text-sm text-slate-500 py-2">No hay accesorios en stock.</p>'}
+  ${ic.length?`<h3 class="font-bold text-sm mt-4">Se entregan con el celular (no cuentan)</h3>`+ic.map(a=>row(esc(a.name),a.stock+' unidades')).join(''):''}`);
+}
+/* --- servicio técnico --- */
+const SS=['Recibido','En diagnóstico','Esperando repuesto','En reparación','Listo','Entregado','Cancelado'];
+const SK={'Recibido':'Vendido','En diagnóstico':'Reservado','Esperando repuesto':'Reservado','En reparación':'Reservado','Listo':'Disponible','Entregado':'Disponible','Cancelado':'Vendido'};
+const cvt=(d,a)=>{if(d.cur===BC())return a;const fx=+d.fx;if(!fx){toast('Poné la cotización del dólar','err');return null}return toBase(a,d.cur,fx)};
+const curF=()=>fld('cur','Moneda',BC(),'select',{opts:['USD','ARS']})+fld('fx','Dólar (pesos)',FX()||'','number');
+const opaid=o=>sum(o.pays||[],p=>p.amount);
+V.srv=()=>{
+  const act=db.srv.filter(o=>!['Entregado','Cancelado'].includes(o.status)),gan=sum(db.srv.filter(o=>o.status==='Entregado'),o=>opaid(o)-(+o.cost||0));
+  const sc=(l,v)=>`<div class="card p-3"><div class="text-[11px] text-slate-500">${l}</div><div class="font-extrabold text-lg">${v}</div></div>`;
+  return head('Reparaciones',`<button class="btn btn-p" onclick="srvForm()"><i data-lucide="plus"></i>Nuevo ingreso</button>`)+
+  `<div class="grid grid-cols-3 gap-3 mb-3">${sc('En el taller',act.length)}${sc('Listas para entregar',db.srv.filter(o=>o.status==='Listo').length)}${sc('Ganancia entregadas',money(gan))}</div>
+  <div class="flex flex-wrap gap-2 mb-3"><input class="inp !w-auto flex-1 min-w-[180px]" placeholder="Buscar cliente, equipo o IMEI" value="${esc(ui.q)}" oninput="ui.q=this.value;srvList()"><select class="inp !w-auto" onchange="ui.st=this.value;srvList()"><option value="">Todos los estados</option>${SS.map(s=>`<option ${ui.st===s?'selected':''}>${s}</option>`).join('')}</select></div><div id="list"></div>`;
+};
+function srvList(){
+  const q=ui.q.toLowerCase(),r=db.srv.filter(o=>(!q||(o.client+' '+o.device+' '+(o.imei||'')+' '+o.problem+' '+o.num).toLowerCase().includes(q))&&(!ui.st||o.status===ui.st)).sort((a,b)=>b.num-a.num);
+  if(!r.length)return setH('#list',`<div class="card p-8 text-center text-slate-500 text-sm">${db.srv.length?'Ninguna reparación coincide con la búsqueda.':'Todavía no hay equipos en el taller. Usá «Nuevo ingreso» para cargar el primero.'}</div>`);
+  setH('#list',`<div class="grid md:grid-cols-2 gap-3">${r.map(o=>{const paid=opaid(o),falta=Math.max(0,(+o.budget||0)-paid),late=o.eta&&o.eta<today()&&!['Listo','Entregado','Cancelado'].includes(o.status);
+  return `<div class="card p-4 flex flex-col gap-2"><div class="flex justify-between gap-2"><div><div class="text-xs text-slate-400">#${String(o.num).padStart(4,'0')} - ingreso ${fdate(o.date)}</div><div class="font-bold">${esc(o.device)}</div><div class="text-sm text-slate-600">${esc(o.client)}</div></div><span class="chip k-${SK[o.status]} h-fit whitespace-nowrap">${o.status}</span></div>
+  <div class="text-sm">${esc(o.problem)}</div>${o.imei?`<div class="text-xs text-slate-500">IMEI / serie ${esc(o.imei)}</div>`:''}
+  <div class="flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-slate-500"><span>Presupuesto <b>${money(o.budget)}</b></span><span>Cobrado <b>${money(paid)}</b></span><span>Falta cobrar <b>${money(falta)}</b></span><span>Costo <b>${money(o.cost)}</b></span>${o.eta?`<span class="${late?'font-bold text-red-600':''}">${late?'Atrasada - ':''}entrega ${fdate(o.eta)}</span>`:''}</div>
+  <div class="flex flex-wrap items-center justify-between gap-2 mt-auto pt-2 border-t"><select class="inp !w-auto !py-1 text-xs" onchange="srvStatus('${o.id}',this.value)">${SS.map(s=>`<option ${o.status===s?'selected':''}>${s}</option>`).join('')}</select><span class="whitespace-nowrap"><button class="btn-i" title="Cobrar" onclick="srvPay('${o.id}')"><i data-lucide="banknote"></i></button><button class="btn-i" title="Ver cobros" onclick="srvPays('${o.id}')"><i data-lucide="list"></i></button><button class="btn-i" title="Avisar por WhatsApp" onclick="srvWa('${o.id}')"><i data-lucide="message-circle"></i></button><button class="btn-i" title="Editar" onclick="srvForm('${o.id}')"><i data-lucide="pencil"></i></button><button class="btn-i" title="Eliminar" onclick="del('srv','${o.id}')"><i data-lucide="trash-2"></i></button></span></div></div>`}).join('')}</div>`);
+}
+function srvForm(id){
+  const o=db.srv.find(x=>x.id===id)||{date:today(),status:'Recibido'};
+  modal(id?'Editar reparación':'Nuevo ingreso al taller',grid(
+    `<label class="block col-span-2"><span class="text-slate-500 text-xs font-semibold">Cliente</span><input name="client" list="dl3" value="${esc(o.client)}" required class="inp mt-1"><datalist id="dl3">${db.clients.map(c=>`<option value="${esc(c.name)}">`).join('')}</datalist></label>`+
+    fld('device','Equipo',o.device,'text',{req:1,full:1,att:'placeholder="iPhone 11"'})+fld('imei','IMEI / serie',o.imei)+fld('status','Estado',o.status,'select',{opts:SS})+
+    fld('problem','Problema',o.problem,'text',{req:1,full:1})+
+    fld('budget','Presupuesto ('+BC()+')',o.budget,'number')+fld('cost','Costo de repuestos ('+BC()+')',o.cost,'number')+
+    fld('date','Fecha de ingreso',o.date,'date')+fld('eta','Entrega estimada',o.eta,'date')+fld('notes','Notas',o.notes,'text',{full:1})),d=>{
+    d.budget=+d.budget||0;d.cost=+d.cost||0;d.client=d.client.trim();
+    d.cid=(db.clients.find(c=>c.name===d.client)||{}).id||'';
+    if(d.status==='Entregado'&&!o.delivered)d.delivered=today();
+    if(id)Object.assign(o,d);else db.srv.push({id:uid(),num:Math.max(0,...db.srv.map(x=>x.num||0))+1,pays:[],...d});
+    save();closeM();render();toast('Reparación guardada');
+  });
+}
+function srvStatus(id,v){const o=db.srv.find(x=>x.id===id);o.status=v;if(v==='Entregado'&&!o.delivered)o.delivered=today();save();render();toast('Estado: '+v)}
+function srvPay(id){
+  const o=db.srv.find(x=>x.id===id),falta=Math.max(0,(+o.budget||0)-opaid(o));
+  modal('Cobro - '+esc(o.device),`<p class="text-sm text-slate-500 mb-3">Presupuesto ${money(o.budget)}, cobrado ${money(opaid(o))}, falta ${money(falta)}. El monto va en la moneda que elijas.</p>`+grid(fld('amount','Monto',Math.round(falta*100)/100||'','number',{req:1})+fld('pay','Método',PAY[0],'select',{opts:PAY})+curF()+fld('date','Fecha',today(),'date')),d=>{
+    const a=cvt(d,+d.amount);if(a===null)return;
+    if(!(a>0))return toast('Poné un monto mayor a 0','err');
+    (o.pays=o.pays||[]).push({date:d.date,amount:a,raw:+d.amount,cur:d.cur,fx:d.cur!==BC()?+d.fx:0,pay:d.pay});save();closeM();render();toast('Cobro registrado');
+  });
+}
+function srvPays(id){
+  const o=db.srv.find(x=>x.id===id);
+  modal('Cobros - '+esc(o.device),(o.pays||[]).length?o.pays.map((p,i)=>`<div class="flex justify-between items-center py-2 border-t first:border-0 text-sm"><div><div>${fdate(p.date)} - ${esc(p.pay||'')}</div>${p.cur&&p.cur!==BC()?`<div class="text-xs text-slate-400">${fm(p.raw,p.cur)} a ${fm(p.fx,'ARS')}</div>`:''}</div><div class="flex items-center gap-2 font-semibold">${money(p.amount)}<button type="button" class="btn-i" onclick="srvDelPay('${id}',${i})"><i data-lucide="trash-2"></i></button></div></div>`).join(''):'<p class="text-sm text-slate-500">Todavía no hay cobros registrados.</p>');
+}
+function srvDelPay(id,i){if(!confirm('¿Quitar este cobro?'))return;db.srv.find(x=>x.id===id).pays.splice(i,1);save();render();srvPays(id)}
+function srvWa(id){
+  const o=db.srv.find(x=>x.id===id),c=db.clients.find(x=>x.id===o.cid)||db.clients.find(x=>x.name===o.client)||{};
+  if(!waNum(c.tel))return toast('Cargá el teléfono de '+o.client+' en Clientes','err');
+  const falta=Math.max(0,(+o.budget||0)-opaid(o));
+  const msg='Hola '+o.client+', te escribo de '+(CFG().name||'MiApple.Cba')+'. '+(o.status==='Listo'?'Tu '+o.device+' ya está listo para retirar.'+(falta>0.5?' Saldo a pagar: '+fm(falta,BC())+(FX()?' (aprox. '+fm(fromBase(falta,OC(),FX()),OC())+')':'')+'.':''):'Te cuento cómo va tu '+o.device+': está en estado "'+o.status+'".')+' ¡Gracias!';
+  window.open('https://wa.me/'+waNum(c.tel)+'?text='+encodeURIComponent(msg),'_blank');
+}
+
+/* --- proveedores y red --- */
+const normN=s=>String(s||'').trim().toLowerCase();
+const provNames=()=>db.provs.map(p=>`<option value="${esc(p.name)}">`).join('');
+V.prov=()=>head('Proveedores',`<button class="btn btn-p" onclick="provForm()"><i data-lucide="plus"></i>Nuevo proveedor</button>`)+`<input class="inp mb-3" placeholder="Buscar proveedor, rubro o ciudad" value="${esc(ui.q)}" oninput="ui.q=this.value;provList()"><div id="list"></div>`;
+function provList(){
+  const q=ui.q.toLowerCase(),r=db.provs.filter(p=>!q||(p.name+' '+(p.cat||'')+' '+(p.city||'')+' '+(p.contact||'')).toLowerCase().includes(q)).sort((a,b)=>a.name.localeCompare(b.name));
+  if(!r.length)return setH('#list',`<div class="card p-8 text-center text-slate-500 text-sm">${db.provs.length?'Ningún proveedor coincide.':'Todavía no cargaste proveedores. Usá «Nuevo proveedor» para empezar.'}</div>`);
+  setH('#list',`<div class="grid md:grid-cols-2 xl:grid-cols-3 gap-3">${r.map(p=>{
+    const ph=db.phones.filter(x=>normN(x.supplier)===normN(p.name)),deb=sum(pend('pagar').filter(d=>normN(d.party)===normN(p.name)),saldo);
+    return `<div class="card p-4 flex flex-col gap-2"><div class="flex justify-between"><div><div class="font-bold">${esc(p.name)}</div><div class="text-xs text-slate-500">${esc(p.cat||'')}${p.city?' - '+esc(p.city):''}</div></div><div class="whitespace-nowrap"><button class="btn-i" onclick="provForm('${p.id}')"><i data-lucide="pencil"></i></button><button class="btn-i" onclick="del('provs','${p.id}')"><i data-lucide="trash-2"></i></button></div></div>
+    ${p.contact?`<div class="text-sm">${esc(p.contact)}</div>`:''}${waNum(p.tel)?`<a class="text-sm text-[#3346d3] font-semibold" target="_blank" href="https://wa.me/${waNum(p.tel)}">${esc(p.tel)}</a>`:''}${p.notes?`<div class="text-xs text-slate-500">${esc(p.notes)}</div>`:''}
+    <div class="flex flex-wrap gap-x-4 text-xs text-slate-500"><span>Le debés <b class="${deb>0.5?'text-red-600':''}">${money(deb)}</b></span><span>Le compraste <b>${ph.length}</b> equipos (${money(sum(ph,x=>+x.cost||0))})</span></div>
+    <div class="flex justify-between items-center mt-auto pt-2 border-t"><button class="btn" onclick="provDebt('${p.id}')"><i data-lucide="banknote"></i>Anotar deuda</button><button class="btn" onclick="go('red')"><i data-lucide="network"></i>Precios</button></div></div>`}).join('')}</div>`);
+}
+function provDebt(id){debtForm('pagar','',db.provs.find(x=>x.id===id).name)}
+function provForm(id){
+  const p=db.provs.find(x=>x.id===id)||{};
+  modal(id?'Editar proveedor':'Nuevo proveedor',grid(fld('name','Nombre',p.name,'text',{req:1,full:1})+fld('contact','Persona de contacto',p.contact)+fld('tel','WhatsApp / teléfono',p.tel,'tel')+fld('cat','Rubro',p.cat,'text',{att:'placeholder="iPhones usados, accesorios..."'})+fld('city','Ciudad',p.city)+fld('notes','Notas',p.notes,'text',{full:1})),d=>{
+    d.name=d.name.trim();
+    if(id)Object.assign(p,d);else db.provs.push({id:uid(),...d});
+    save();closeM();render();toast('Proveedor guardado');
+  });
+}
+V.red=()=>head('Red de proveedores',`<button class="btn" onclick="pedirForm()"><i data-lucide="send"></i>Pedir precios</button><button class="btn btn-p" onclick="quoteForm()"><i data-lucide="plus"></i>Nueva cotización</button>`)+
+  `<p class="text-sm text-slate-500 mb-3">Anotá los precios que te pasa cada proveedor y compará quién tiene el mejor. Con «Pedir precios» le escribís a todos por WhatsApp.</p><input class="inp mb-3" placeholder="Buscar modelo" value="${esc(ui.q)}" oninput="ui.q=this.value;redList()"><div id="list"></div>`;
+function redList(){
+  const q=ui.q.toLowerCase(),G={};
+  db.quotes.filter(x=>!q||x.model.toLowerCase().includes(q)).forEach(x=>(G[normN(x.model)]=G[normN(x.model)]||[]).push(x));
+  const ks=Object.keys(G).sort();
+  if(!ks.length)return setH('#list',`<div class="card p-8 text-center text-slate-500 text-sm">${db.quotes.length?'Ningún modelo coincide.':'Todavía no hay cotizaciones. Cargá la primera con «Nueva cotización».'}</div>`);
+  setH('#list',ks.map(k=>{const L=G[k].sort((a,b)=>a.price-b.price),best=L[0].price;
+    return `<div class="card p-4 mb-3"><div class="flex justify-between gap-2"><h2 class="font-bold">${esc(L[0].model)}</h2><span class="chip k-Disponible whitespace-nowrap">Mejor ${money(best)}</span></div>${L.map(x=>{const age=daysSince(x.date),pv=db.provs.find(p=>normN(p.name)===normN(x.prov));
+      return `<div class="flex justify-between gap-2 items-center py-2 border-t text-sm"><div><div class="font-semibold">${esc(x.prov)}</div><div class="text-xs ${age>14?'text-red-600':'text-slate-500'}">${fdate(x.date)} (${age} días)${age>14?' - precio viejo':''}${x.note?' - '+esc(x.note):''}</div></div><div class="flex items-center gap-1 whitespace-nowrap font-bold ${x.price===best?'text-[#0b7a64]':''}">${money(x.price)}${pv&&waNum(pv.tel)?`<a class="btn-i" target="_blank" href="https://wa.me/${waNum(pv.tel)}"><i data-lucide="message-circle"></i></a>`:''}<button class="btn-i" onclick="del('quotes','${x.id}')"><i data-lucide="trash-2"></i></button></div></div>`}).join('')}</div>`}).join(''));
+}
+function quoteForm(){
+  modal('Nueva cotización',grid(fld('model','Modelo y capacidad','','text',{req:1,full:1,att:'placeholder="iPhone 15 128GB"'})+
+    `<label class="block col-span-2"><span class="text-slate-500 text-xs font-semibold">Proveedor</span><input name="prov" list="dl4" required class="inp mt-1"><datalist id="dl4">${provNames()}</datalist></label>`+
+    fld('price','Precio','','number',{req:1})+curF()+fld('date','Fecha',today(),'date')+fld('note','Nota (opcional)','','text')),d=>{
+    const a=cvt(d,+d.price);if(a===null)return;
+    db.quotes.push({id:uid(),model:d.model.trim(),prov:d.prov.trim(),price:a,raw:+d.price,cur:d.cur,fx:d.cur!==BC()?+d.fx:0,date:d.date,note:d.note});
+    save();closeM();render();toast('Cotización guardada');
+  });
+}
+function pedirForm(){
+  modal('Pedir precios',`<p class="text-sm text-slate-500 mb-3">Escribí qué modelo buscás y después elegí a qué proveedores se lo mandás por WhatsApp.</p>`+grid(fld('model','Modelo y capacidad','','text',{req:1,full:1,att:'placeholder="iPhone 15 128GB"'})),d=>{ui.pedido=d.model.trim();pedirLista()});
+}
+function pedirLista(){
+  const L=db.provs.filter(p=>waNum(p.tel));
+  modal('Pedido: '+esc(ui.pedido),L.length?'<p class="text-sm text-slate-500 mb-3">Tocá cada proveedor para abrir WhatsApp con el mensaje ya escrito.</p>'+L.map(p=>`<button type="button" class="btn w-full justify-between mb-2" onclick="pedirWa('${p.id}')"><span>${esc(p.name)}</span><i data-lucide="message-circle"></i></button>`).join(''):'<p class="text-sm text-slate-500">Cargá proveedores con teléfono en la sección Proveedores.</p>');
+}
+function pedirWa(id){const p=db.provs.find(x=>x.id===id);window.open('https://wa.me/'+waNum(p.tel)+'?text='+encodeURIComponent('Hola '+(p.contact||p.name)+', te escribo de '+(CFG().name||'MiApple.Cba')+'. ¿Tenés '+ui.pedido+' disponible? ¿A qué precio?'),'_blank')}
 
 /* ---------- COPIA DE SEGURIDAD ---------- */
 function exportDb(){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(db,null,1)],{type:'application/json'}));a.download='respaldo-'+today()+'.json';a.click()}
@@ -554,7 +722,7 @@ function importDb(i){
 
 function render(){
   nav();setBrand();$('#main').innerHTML=V[ui.tab]();
-  ({inv:invList,cli:cliList,pos:()=>{posRes();posCart();setH('#hist',db.sales.length?db.sales.slice(0,10).map(s=>saleRow(s,1)).join(''):'<p class="text-sm text-slate-500 py-4">Sin ventas registradas.</p>')}})[ui.tab]?.();
+  ({inv:invList,cli:cliList,srv:srvList,prov:provList,red:redList,pos:()=>{posRes();posCart();setH('#hist',db.sales.length?db.sales.slice(0,10).map(s=>saleRow(s,1)).join(''):'<p class="text-sm text-slate-500 py-4">Sin ventas registradas.</p>')}})[ui.tab]?.();
   lucide.createIcons();
 }
 if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js');
