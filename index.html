@@ -86,7 +86,7 @@ const fromBase=(n,cur,fx)=>cur===BC()?n:(BC()==='USD'?n*fx:n/fx);
 const curName=c=>c==='ARS'?'pesos':'dólares';
 const fdate=d=>d?d.slice(0,10).split('-').reverse().join('/'):'';
 let db=(()=>{try{return JSON.parse(localStorage.getItem('cel_db'))}catch(e){}})()||{phones:[],acc:[],clients:[],sales:[]};
-const COLS=['phones','acc','clients','sales','debts','moves','cfg','srv','provs','quotes'];
+const COLS=['phones','acc','clients','sales','debts','moves','cfg','srv','provs','quotes','ahorro'];
 let cloud=null,q=Promise.resolve(),synced=Object.fromEntries(COLS.map(c=>[c,{}]));
 COLS.forEach(c=>db[c]=db[c]||[]);
 const CFG=()=>db.cfg[0]||(db.cfg[0]={id:'main'});
@@ -144,7 +144,7 @@ function boot(){
 setSync('Guardado en este dispositivo',0);
 const ui={tab:'dash',inv:'phones',q:'',st:'',cq:'',sq:'',cart:[],cid:'',cin:'',pay:'Efectivo',paid:'',cuo:'',venc:'',cur:'',fxs:'',canje:[],war:''};
 const ST=['Disponible','Reservado','Vendido'],COND=['Nuevo','Usado','Grado A','Grado B'],PAY=['Efectivo','Transferencia','Tarjeta','USDT','Otro'];
-const TABS=[['dash','Dashboard','Resumen general','layout-dashboard'],['rep','Analíticas','Métricas y reportes','bar-chart-3'],['pos','Ventas','Gestión de ventas','shopping-cart'],['inv','Inventario','Stock de dispositivos','smartphone'],['srv','Reparaciones','Servicio técnico','wrench'],['prov','Proveedores','Gestión de proveedores','truck'],['red','Red de proveedores','Precios y pedidos','network'],['cli','Clientes','Base de clientes','users'],['fin','Deudas','Cobros y pagos','banknote']],MAIN=['dash','pos','inv','cli'];
+const TABS=[['dash','Dashboard','Resumen general','layout-dashboard'],['rep','Analíticas','Métricas y reportes','bar-chart-3'],['pos','Ventas','Gestión de ventas','shopping-cart'],['inv','Inventario','Stock de dispositivos','smartphone'],['srv','Reparaciones','Servicio técnico','wrench'],['prov','Proveedores','Gestión de proveedores','truck'],['red','Red de proveedores','Precios y pedidos','network'],['cli','Clientes','Base de clientes','users'],['fin','Deudas','Cobros y pagos','banknote'],['aho','Ahorros','Ahorro de tus ventas','piggy-bank']],MAIN=['dash','pos','inv','cli'];
 const cl=c=>c.name+(c.dni?' - '+c.dni:'');
 const setH=(s,h)=>{$(s).innerHTML=h;lucide.createIcons()};
 const go=k=>{ui.tab=k;ui.q='';ui.st='';ui.cq='';render()};
@@ -185,10 +185,10 @@ V.dash=()=>{
   sBtn(card('Capital en stock',money(cap),`${ph.length} celulares y ${nAcc} accesorios`,'wallet'))+
   sBtn(card('Valor de venta estimado',money(est),'Ganancia potencial: '+money(est-cap),'tag'))+
   `<button class="text-left [&>div]:h-full" onclick="gananciaInfo()">`+card('Ganancia neta acumulada',money(gan),db.sales.length+' ventas - tocá para ver el detalle','trending-up','!bg-[#3346d3] !text-white !border-[#3346d3]')+`</button>`+
-  `<button class="text-left [&>div]:h-full" onclick="lowInfo()">`+card('Stock bajo',low.length,low.length?'Tocá para ver cuáles':'Todo en orden','alert-triangle',low.length?'!bg-[#fdf0d1] !border-[#f0d38a]':'')+`</button>`+`</div><div class="grid md:grid-cols-3 gap-3 mt-3">`+
-  `<button class="text-left [&>div]:h-full" onclick="ajusteForm()">`+card('Plata para invertir',money(caja())+`<div class="text-lg font-bold opacity-90 mt-0.5">`+(FX()?'= '+fm(fromBase(caja(),OC(),FX()),OC()):'Cargá el dólar para ver la otra moneda')+`</div>`,'Estimada. Tocá para ajustarla','banknote','!bg-[#0b7a64] !text-white !border-[#0b7a64]')+`</button>`+
+  `<button class="text-left [&>div]:h-full" onclick="lowInfo()">`+card('Stock bajo',low.length,low.length?'Tocá para ver cuáles':'Todo en orden','alert-triangle',low.length?'!bg-[#fdf0d1] !border-[#f0d38a]':'')+`</button>`+`</div><div class="grid md:grid-cols-2 xl:grid-cols-4 gap-3 mt-3">`+
+  `<button class="text-left [&>div]:h-full" onclick="ajusteForm()">`+card('Plata para invertir',money(inv())+`<div class="text-lg font-bold opacity-90 mt-0.5">`+(FX()?'= '+fm(fromBase(inv(),OC(),FX()),OC()):'Cargá el dólar para ver la otra moneda')+`</div>`,(ahorroDesc()?'Sin contar '+money(ahorroDesc())+' de ahorro. Tocá para ajustar':'Estimada. Tocá para ajustarla'),'banknote','!bg-[#0b7a64] !text-white !border-[#0b7a64]')+`</button>`+
   card('Me deben',money(sum(pend('cobrar'),saldo)),pend('cobrar').length+' cuentas'+(vencidas?' - '+vencidas+' vencidas':''),'arrow-down-left',vencidas?'!bg-[#fde2e2] !border-[#f0b3b3]':'')+
-  card('Debo a proveedores',money(sum(pend('pagar'),saldo)),pend('pagar').length+' cuentas','arrow-up-right')+`</div>
+  card('Debo a proveedores',money(sum(pend('pagar'),saldo)),pend('pagar').length+' cuentas','arrow-up-right')+`<button class="text-left [&>div]:h-full" onclick="go('aho')">`+card('Ahorros',money(ahorroDisp()),ahPct()+'% de la ganancia de cada celular','piggy-bank')+`</button></div>
   <div class="grid gap-3 mt-3">${revisar()}
   <div class="card p-4"><h2 class="font-bold mb-2">Últimas ventas</h2>${db.sales.length?db.sales.slice(0,6).map(s=>saleRow(s)).join(''):'<p class="text-sm text-slate-500">Todavía no registraste ventas. Andá a Ventas para cargar la primera.</p>'}</div></div>`;
 };
@@ -329,7 +329,7 @@ function confirmSale(){
   const sid=uid(),war=ui.war===''?(CFG().war??30):Math.max(0,+ui.war||0);
   ui.cart.forEach(c=>{if(c.t==='p'){const p=db.phones.find(x=>x.id===c.id);p.status='Vendido';delete p.res}else db.acc.find(x=>x.id===c.id).stock-=c.qty});
   const cj=ui.canje.map(c=>{const id=uid();db.phones.push({id,model:c.model,imei:c.imei,cap:c.cap,bat:c.bat,color:c.color,cond:c.cond,cost:c.value,price:c.price,supplier:'Canje - '+cli.name,date:today(),status:'Disponible',canje:true,sid,check:c.check,note:c.note});return {id,name:(c.model+' '+c.cap).trim(),imei:c.imei,value:c.value}});
-  db.sales.unshift({id:sid,date:today(),cid:ui.cid,cname:cli?cli.name:'Consumidor final',items:ui.cart.map(c=>({...c})),pay:ui.pay,total,profit,paid:pd,canje:cj,canjeVal:cv,sena:sn,war,warEnd:war?addDays(today(),war):'',cur:pc.cur,fx:pc.conv?pc.fx:0});
+  db.sales.unshift({id:sid,date:today(),cid:ui.cid,cname:cli?cli.name:'Consumidor final',items:ui.cart.map(c=>({...c})),pay:ui.pay,total,profit,paid:pd,ahorro:phoneProfit(ui.cart)*ahPct()/100,canje:cj,canjeVal:cv,sena:sn,war,warEnd:war?addDays(today(),war):'',cur:pc.cur,fx:pc.conv?pc.fx:0});
   if(pd<due)db.debts.push({id:uid(),kind:'cobrar',party:cli.name,cid:cli.id,sid,desc:'Venta del '+fdate(today()),total:due-pd,cuotas:+ui.cuo||'',venc:ui.venc,date:today(),pays:[]});
   save();ui.cart=[];ui.cid='';ui.cin='';ui.sq='';ui.paid='';ui.cuo='';ui.venc='';ui.fxs='';ui.canje=[];ui.war='';render();toast('Venta registrada');receipt(sid);
 }
@@ -351,11 +351,11 @@ function cfgForm(){
 }
 function pickLogo(i){const f=i.files[0];if(!f)return;const im=new Image();im.onload=()=>{const k=Math.min(1,160/Math.max(im.width,im.height)),cv=document.createElement('canvas');cv.width=Math.round(im.width*k);cv.height=Math.round(im.height*k);cv.getContext('2d').drawImage(im,0,0,cv.width,cv.height);const u=cv.toDataURL('image/png');document.querySelector('[name=logo]').value=u;$('#lp').src=u;$('#lp').classList.remove('hidden')};im.src=URL.createObjectURL(f)}
 function ajusteForm(){
-  const c=Math.round(caja()*100)/100,bU=BC()==='USD';
-  modal('Plata para invertir',`<p class="text-sm text-slate-600 mb-3">Poné cuánta plata tenés hoy, separada por moneda (efectivo, banco y USDT). La app las suma al dólar de hoy y desde ahí va actualizando el total con tus ganancias, cobros, compras de stock, pagos a proveedores, gastos y retiros. Podés volver a ajustarla cuando quieras.</p>`+grid(fld('usd','Dólares (incluye USDT)',bU?c:0,'number')+fld('ars','Pesos',bU?0:Math.round(c),'number')),d=>{
+  const c=Math.round(inv()*100)/100,bU=BC()==='USD';
+  modal('Plata para invertir',`<p class="text-sm text-slate-600 mb-3">Poné cuánta plata tenés hoy para invertir (sin contar lo que tenés ahorrado), separada por moneda (efectivo, banco y USDT). La app las suma al dólar de hoy y desde ahí va actualizando el total con tus ganancias, cobros, compras de stock, pagos a proveedores, gastos y retiros. Podés volver a ajustarla cuando quieras.</p>`+grid(fld('usd','Dólares (incluye USDT)',bU?c:0,'number')+fld('ars','Pesos',bU?0:Math.round(c),'number')),d=>{
     const u=+d.usd||0,p=+d.ars||0,main=bU?u:p,other=bU?p:u;
     if(other&&!FX())return toast('Cargá primero la cotización del dólar','err');
-    CFG().ajuste=main+(other?toBase(other,OC(),FX()):0)-cajaBase();
+    CFG().ajuste=main+(other?toBase(other,OC(),FX()):0)-cajaBase()+ahorroDesc();
     save();closeM();render();toast('Plata ajustada');
   });
 }
@@ -677,8 +677,8 @@ function provList(){
 function provDebt(id){debtForm('pagar','',db.provs.find(x=>x.id===id).name)}
 function provForm(id){
   const p=db.provs.find(x=>x.id===id)||{};
-  modal(id?'Editar proveedor':'Nuevo proveedor',grid(fld('name','Nombre',p.name,'text',{req:1,full:1})+fld('contact','Persona de contacto',p.contact)+fld('tel','WhatsApp / teléfono',p.tel,'tel')+fld('cat','Rubro',p.cat,'text',{att:'placeholder="iPhones usados, accesorios..."'})+fld('city','Ciudad',p.city)+fld('notes','Notas',p.notes,'text',{full:1})+`<label class="block col-span-2"><span class="text-slate-500 text-xs font-semibold">Listas de precios (una por línea: Nombre | enlace de Google Sheets)</span><textarea name="lists" rows="3" class="inp mt-1" placeholder="iPhones usados | https://docs.google.com/spreadsheets/d/...">${esc((p.lists||[]).map(l=>l.name+' | '+l.url).join('\n'))}</textarea></label>`),d=>{
-    d.name=d.name.trim();d.lists=parseLists(d.lists);
+  modal(id?'Editar proveedor':'Nuevo proveedor',grid(fld('name','Nombre',p.name,'text',{req:1,full:1})+fld('contact','Persona de contacto',p.contact)+fld('tel','WhatsApp / teléfono',p.tel,'tel')+fld('cat','Rubro',p.cat,'text',{att:'placeholder="iPhones usados, accesorios..."'})+fld('city','Ciudad',p.city)+fld('notes','Notas',p.notes,'text',{full:1})+`<label class="block col-span-2"><span class="text-slate-500 text-xs font-semibold">Listas de precios (una por línea: Nombre | enlace de Google Sheets)</span><textarea name="lists" rows="3" class="inp mt-1" placeholder="iPhones usados | https://docs.google.com/spreadsheets/d/...">${esc((p.lists||[]).map(l=>l.name+' | '+l.url).join('\n'))}</textarea></label>`+fld('tabs','Pestañas del archivo (opcional, separadas por coma)',(p.tabs||[]).join(', '),'text',{full:1,att:'placeholder="Accesorios, Productos Apple, ..."'})),d=>{
+    d.name=d.name.trim();d.lists=parseLists(d.lists);d.tabs=String(d.tabs||'').split(',').map(x=>x.trim()).filter(Boolean);
     if(id)Object.assign(p,d);else db.provs.push({id:uid(),...d});
     save();closeM();render();toast('Proveedor guardado');
   });
@@ -716,6 +716,7 @@ function pedirWa(id){const p=db.provs.find(x=>x.id===id);window.open('https://wa
 function parseLists(t){
   return String(t||'').split('\n').map(l=>l.trim()).filter(Boolean).map((l,i)=>{const k=l.indexOf('|');const nm=k>-1?l.slice(0,k).trim():'',url=(k>-1?l.slice(k+1):l).trim();return {name:nm||'Lista '+(i+1),url}}).filter(x=>/docs\.google\.com\/spreadsheets\/d\//.test(x.url));
 }
+const provLists=p=>(p.lists||[]).flatMap(l=>(p.tabs&&p.tabs.length)?p.tabs.map(t=>({name:t,url:l.url,sheet:t})):[l]);
 function parseMoney(v){
   let t=String(v||'').replace(/[^\d.,-]/g,'');if(!t)return 0;
   const lc=t.lastIndexOf(','),ld=t.lastIndexOf('.');
@@ -724,49 +725,53 @@ function parseMoney(v){
   else if(ld>-1)t=/\.\d{1,2}$/.test(t)?t:t.replace(/\./g,'');
   return parseFloat(t)||0;
 }
-function gvFetch(url){
+function gvFetch(l){
   return new Promise((res,rej)=>{
-    const m=url.match(/\/d\/([\w-]+)/);if(!m)return rej(new Error('El enlace no es de Google Sheets'));
-    const g=(url.match(/[#&?]gid=(\d+)/)||[])[1]||'0',cb='__gv'+Date.now(),sc=document.createElement('script');let done=false,t;
+    const m=l.url.match(/\/d\/([\w-]+)/);if(!m)return rej(new Error('El enlace no es de Google Sheets'));
+    const g=(l.url.match(/[#&?]gid=(\d+)/)||[])[1]||'0',cb='__gv'+Date.now(),sc=document.createElement('script');let done=false,t;
     const end=()=>{done=true;delete window[cb];clearTimeout(t);sc.remove()};
     t=setTimeout(()=>{if(!done){end();rej(new Error('La hoja no respondió. Revisá que esté compartida con enlace'))}},15000);
-    window[cb]=j=>{end();j&&j.status==='ok'?res(j.table):rej(new Error('No se pudo leer la hoja. Revisá que esté compartida con enlace'))};
+    window[cb]=j=>{end();j&&j.status==='ok'?res(j.table):rej(new Error(l.sheet?'No se pudo leer la pestaña «'+l.sheet+'». Revisá que el nombre sea exacto':'No se pudo leer la hoja. Revisá que esté compartida con enlace'))};
     sc.onerror=()=>{if(!done){end();rej(new Error('No se pudo conectar con Google'))}};
-    sc.src='https://docs.google.com/spreadsheets/d/'+m[1]+'/gviz/tq?gid='+g+'&headers=0&tqx=responseHandler:'+cb;
+    sc.src='https://docs.google.com/spreadsheets/d/'+m[1]+'/gviz/tq?'+(l.sheet?'sheet='+encodeURIComponent(l.sheet):'gid='+g)+'&headers=0&tqx=responseHandler:'+cb;
     document.head.appendChild(sc);
   });
 }
 function lstParse(table){
   const rows=table.rows.map(r=>(r.c||[]).map(c=>c?(c.f!=null?String(c.f):(c.v!=null?String(c.v):'')):'').map(x=>x.trim()));
-  const nz=r=>r.filter(Boolean).length;
-  let h=rows.findIndex(r=>nz(r)>=4&&r.some(x=>/modelo|producto|art[ií]culo|descripci[oó]n|detalle/i.test(x)));
+  const nz=r=>r.filter(Boolean).length,W=/modelo|producto|art[ií]culo|descripci[oó]n|detalle|nombre|c[oó]digo|item/i;
+  let h=rows.findIndex(r=>nz(r)>=3&&r.some(x=>W.test(x)));
+  if(h<0)h=rows.findIndex(r=>nz(r)>=2&&r.some(x=>W.test(x)));
   if(h<0)h=rows.findIndex(r=>nz(r)>=3);
+  if(h<0)h=rows.findIndex(r=>nz(r)>=2);
   if(h<0)h=0;
+  const hn=nz(rows[h]||[]),need=Math.max(1,Math.min(3,hn-1));
   const info=rows.slice(0,h).flat().filter(Boolean).filter(x=>x.length<120),n=Math.max(0,...rows.map(r=>r.length));
-  const data=rows.slice(h+1).filter(r=>nz(r)>=3),keep=[...Array(n).keys()].filter(j=>(rows[h]||[])[j]||data.some(r=>r[j]));
+  const data=rows.slice(h+1).filter(r=>nz(r)>=need),keep=[...Array(n).keys()].filter(j=>(rows[h]||[])[j]||data.some(r=>r[j]));
   return {hdr:keep.map(j=>(rows[h]||[])[j]||''),rows:data.map(r=>keep.map(j=>r[j]||'')),info};
 }
-const lstKey=(pid,i)=>'cel_lst_'+pid+'_'+i;
+const lstKey=(pid,n)=>'cel_lst_'+pid+'_'+n;
 const ago=ts=>{const m=Math.round((Date.now()-ts)/60000);return m<1?'recién':m<60?'hace '+m+' min':m<1440?'hace '+Math.round(m/60)+' h':'hace '+Math.round(m/1440)+' días'};
 function lstOpen(pid,i=0){
+  const p=db.provs.find(x=>x.id===pid),l=provLists(p)[i];if(!l)return;
   ui.lst={pid,i,hdr:[],rows:null,info:[],ts:0,loading:false,err:'',q:'',av:true};
-  try{const c=JSON.parse(localStorage.getItem(lstKey(pid,i)));if(c){Object.assign(ui.lst,c)}}catch(e){}
+  try{const c=JSON.parse(localStorage.getItem(lstKey(pid,l.name)));if(c)Object.assign(ui.lst,c)}catch(e){}
   ui.tab='lst';render();lstLoad();
 }
 async function lstLoad(){
-  const L=ui.lst,p=db.provs.find(x=>x.id===L.pid),l=p&&(p.lists||[])[L.i];if(!l)return;
+  const L=ui.lst,p=db.provs.find(x=>x.id===L.pid),l=p&&provLists(p)[L.i];if(!l)return;
   L.loading=true;L.err='';lstList();
   try{
-    const d=lstParse(await gvFetch(l.url));
+    const d=lstParse(await gvFetch(l));
     Object.assign(L,d,{ts:Date.now()});
-    try{localStorage.setItem(lstKey(L.pid,L.i),JSON.stringify({hdr:d.hdr,rows:d.rows,info:d.info,ts:L.ts}))}catch(e){}
+    try{localStorage.setItem(lstKey(L.pid,l.name),JSON.stringify({hdr:d.hdr,rows:d.rows,info:d.info,ts:L.ts}))}catch(e){}
   }catch(e){L.err=e.message||'No se pudo leer la lista'}
   L.loading=false;if(ui.tab==='lst'&&ui.lst===L)lstList();
 }
 V.lst=()=>{
-  const L=ui.lst,p=db.provs.find(x=>x.id===L.pid)||{lists:[]};
+  const L=ui.lst,p=db.provs.find(x=>x.id===L.pid)||{lists:[]},LL=provLists(p);
   return head(esc(p.name),`<button class="btn" onclick="go('prov')"><i data-lucide="arrow-left"></i>Volver</button><button class="btn" onclick="lstLoad()"><i data-lucide="refresh-cw"></i>Actualizar</button>`)+
-  ((p.lists||[]).length>1?`<div class="flex flex-wrap gap-2 mb-3">${p.lists.map((l,i)=>`<button class="btn ${i===L.i?'btn-p':''}" onclick="lstOpen('${p.id}',${i})">${esc(l.name)}</button>`).join('')}</div>`:'')+
+  (LL.length>1?`<div class="flex flex-wrap gap-2 mb-3">${LL.map((l,i)=>`<button class="btn ${i===L.i?'btn-p':''}" onclick="lstOpen('${p.id}',${i})">${esc(l.name)}</button>`).join('')}</div>`:'')+
   `<div class="flex flex-wrap items-center gap-3 mb-2"><input class="inp !w-auto flex-1 min-w-[180px]" placeholder="Buscar modelo, color, IMEI..." value="${esc(L.q)}" oninput="ui.lst.q=this.value;lstList()"><label class="flex items-center gap-2 text-sm"><input type="checkbox" ${L.av?'checked':''} onchange="ui.lst.av=this.checked;lstList()">Solo disponibles</label></div><div id="lstmsg" class="text-xs text-slate-500 mb-2"></div><div id="list"></div>`;
 };
 function lstList(){
@@ -778,10 +783,11 @@ function lstList(){
   const no=/vendid|servicio|agotad|sin stock/i;
   const idx=L.rows.map((r,i)=>i).filter(i=>{const r=L.rows[i];return (!q||r.join(' ').toLowerCase().includes(q))&&(!L.av||sc<0||!no.test(r[sc]||''))});
   const avail=sc<0?L.rows.length:L.rows.filter(r=>!no.test(r[sc]||'')).length,shown=idx.slice(0,300);
+  const eqv=s=>{const n=parseMoney(s);if(!n||!FX())return '';return /usd|u\$s/i.test(s)?fm(n*FX(),'ARS'):(/\$/.test(s)?fm(n/FX(),'USD'):'')};
   setH('#list',`<div class="text-xs text-slate-500 mb-2">${L.rows.length} productos en la lista${sc<0?'':', '+avail+' disponibles'}. Coinciden ${idx.length}${idx.length>300?' (se muestran 300, afiná la búsqueda)':''}.</div>
   ${(L.info||[]).length?`<details class="text-xs text-slate-500 mb-2"><summary class="cursor-pointer">Información del proveedor</summary><div class="mt-1">${L.info.map(esc).join('<br>')}</div></details>`:''}
-  <div class="card overflow-x-auto"><table class="w-full"><thead><tr>${L.hdr.map(h=>`<th>${esc(h)}</th>`).join('')}${pc>-1&&FX()?'<th>En pesos</th>':''}<th></th></tr></thead><tbody>${shown.map(i=>{const r=L.rows[i],s=pc>-1?r[pc]:'',usd=/usd|u\$s/i.test(s);
-    return `<tr>${r.map((c,j)=>`<td class="${j===pc?'font-semibold':''} ${j===sc&&no.test(c)?'text-slate-400':''}">${esc(c)}</td>`).join('')}${pc>-1&&FX()?`<td class="whitespace-nowrap">${usd&&parseMoney(s)?fm(parseMoney(s)*FX(),'ARS'):''}</td>`:''}<td><button class="btn-i" title="Anotar como cotización" onclick="lstQuote(${i})"><i data-lucide="plus-circle"></i></button></td></tr>`}).join('')}</tbody></table></div>`);
+  <div class="card overflow-x-auto"><table class="w-full"><thead><tr>${L.hdr.map(h=>`<th>${esc(h)}</th>`).join('')}${pc>-1&&FX()?'<th>Equivale a</th>':''}<th></th></tr></thead><tbody>${shown.map(i=>{const r=L.rows[i],s=pc>-1?r[pc]:'';
+    return `<tr>${r.map((c,j)=>`<td class="${j===pc?'font-semibold':''} ${j===sc&&no.test(c)?'text-slate-400':''}">${esc(c)}</td>`).join('')}${pc>-1&&FX()?`<td class="whitespace-nowrap">${eqv(s)}</td>`:''}<td><button class="btn-i" title="Anotar como cotización" onclick="lstQuote(${i})"><i data-lucide="plus-circle"></i></button></td></tr>`}).join('')}</tbody></table></div>`);
 }
 function lstQuote(i){
   const L=ui.lst,r=L.rows[i],p=db.provs.find(x=>x.id===L.pid),pc=L.hdr.findIndex(h=>/precio|price/i.test(h));
@@ -789,9 +795,44 @@ function lstQuote(i){
   if(!(n>0))return toast('No pude leer el precio de esa fila','err');
   const cur=/usd|u\$s/i.test(s)?'USD':'ARS';let a=n;
   if(cur!==BC()){if(!FX())return toast('Cargá la cotización del dólar','err');a=toBase(n,cur,FX())}
-  const model=r.slice(0,3).filter(Boolean).join(' '),note=r.filter((v,j)=>v&&/bater|imei/i.test(L.hdr[j]||'')).map((v,j)=>v).join(' - ');
+  const model=r.slice(0,3).filter(Boolean).join(' '),note=r.filter((v,j)=>v&&/bater|imei/i.test(L.hdr[j]||'')).join(' - ');
   db.quotes.push({id:uid(),model,prov:p.name,price:a,raw:n,cur,fx:cur!==BC()?FX():0,date:today(),note});
   save();toast('Cotización anotada en Red de proveedores');
+}
+
+/* ---------- AHORROS ---------- */
+const ahPct=()=>CFG().ahPct??20;
+const phoneProfit=items=>Math.max(0,sum(items.filter(i=>i.t==='p'),i=>(i.price-i.cost)*i.qty));
+const sAh=s=>s.ahorro!=null?s.ahorro:phoneProfit(s.items)*ahPct()/100;
+const ahAportes=()=>sum(db.sales,sAh);
+const ahMan=()=>sum(db.ahorro,m=>m.amount);
+const ahorroDisp=()=>ahAportes()+ahMan();
+const ahorroDesc=()=>CFG().ahDesc===false?0:ahorroDisp();
+const inv=()=>caja()-ahorroDesc();
+V.aho=()=>{
+  const S=db.sales.filter(s=>s.items.some(i=>i.t==='p')).sort((a,b)=>(b.date||'').localeCompare(a.date||'')),tot=ahorroDisp(),ap=ahAportes(),man=ahMan();
+  const MV=[...db.ahorro].sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  return head('Ahorros',`<button class="btn" onclick="ahCfg()"><i data-lucide="settings"></i>${ahPct()}%</button><button class="btn btn-p" onclick="ahForm()"><i data-lucide="plus"></i>Movimiento</button>`)+
+  `<div class="card p-5 mb-3 !bg-[#0b7a64] !text-white !border-[#0b7a64]"><div class="text-sm font-semibold opacity-80">AHORRADO</div><div class="text-3xl font-extrabold mt-1">${money(tot)}</div>${FX()?`<div class="text-sm opacity-80 mt-1">= ${fm(fromBase(tot,OC(),FX()),OC())}</div>`:''}<div class="text-xs opacity-80 mt-2">Por ventas ${money(ap)}${man?' - movimientos manuales '+money(man):''}</div></div>
+  <p class="text-xs text-slate-500 mb-3">Se aparta el ${ahPct()}% de la ganancia de cada celular que vendés. No cuentan los accesorios ni el servicio técnico. Se calcula al vender, aunque todavía no hayas cobrado todo.${ahorroDesc()?' Este ahorro se descuenta de la plata para invertir.':''}</p>
+  <div class="card px-4 mb-3"><h2 class="font-bold pt-3 pb-1">Por venta de celular</h2>${S.length?S.map(s=>`<div class="flex justify-between gap-3 py-2.5 border-t text-sm"><div><div class="font-semibold">${esc(s.cname)} <span class="text-slate-400 font-normal">${fdate(s.date)}</span></div><div class="text-xs text-slate-500">${s.items.filter(i=>i.t==='p').map(i=>esc(i.m||i.name.split(' (IMEI')[0])).join(', ')} - ganancia del celu ${money(phoneProfit(s.items))}</div></div><b class="text-[#0b7a64] whitespace-nowrap">+${money(sAh(s))}</b></div>`).join(''):'<p class="text-sm text-slate-500 py-3">Todavía no vendiste celulares. Con cada venta se suma el ahorro acá.</p>'}</div>
+  ${MV.length?`<div class="card px-4"><h2 class="font-bold pt-3 pb-1">Movimientos manuales</h2>${MV.map(m=>`<div class="flex justify-between items-center gap-3 py-2.5 border-t text-sm"><div><div class="font-semibold">${esc(m.concept||(m.amount>=0?'Ahorro agregado':'Ahorro retirado'))}</div><div class="text-xs text-slate-500">${fdate(m.date)}</div></div><div class="flex items-center gap-2 font-bold ${m.amount<0?'text-red-600':'text-[#0b7a64]'}">${m.amount<0?'-':'+'}${money(Math.abs(m.amount))}<button class="btn-i" onclick="del('ahorro','${m.id}')"><i data-lucide="trash-2"></i></button></div></div>`).join('')}</div>`:''}`;
+};
+function ahCfg(){
+  modal('Ahorros',`<p class="text-sm text-slate-600 mb-3">Qué porcentaje de la ganancia de cada celular se aparta como ahorro. El cambio vale para las ventas que hagas desde ahora.</p>`+grid(fld('pct','Porcentaje (%)',ahPct(),'number',{req:1,full:1,att:'max="100"'})+`<label class="col-span-2 flex items-start gap-2 text-sm"><input type="checkbox" name="desc" value="1" ${CFG().ahDesc!==false?'checked':''} class="mt-1"><span>Descontar el ahorro de la <b>plata para invertir</b>, para no gastarlo sin querer.</span></label>`),d=>{
+    Object.assign(CFG(),{ahPct:Math.max(0,Math.min(100,+d.pct||0)),ahDesc:d.desc==='1'});save();closeM();render();toast('Guardado');
+  });
+}
+function ahForm(){
+  modal('Movimiento de ahorro',grid(fld('kind','Qué hacés','Agregar','select',{opts:['Agregar','Sacar'],full:1})+fld('concept','Concepto','','text',{full:1})+fld('amount','Monto','','number',{req:1})+curF()+fld('date','Fecha',today(),'date',{full:1})+`<label class="col-span-2 flex items-start gap-2 text-sm"><input type="checkbox" name="spent" value="1" class="mt-1"><span>Solo si sacás: marcalo si lo gastaste o lo retiraste del negocio (se resta de tu plata). Si lo pasás a invertir, dejalo sin marcar.</span></label>`),d=>{
+    const a=cvt(d,+d.amount);if(a===null)return;
+    if(!(a>0))return toast('Poné un monto mayor a 0','err');
+    const out=d.kind==='Sacar';
+    if(out&&a>ahorroDisp()+0.005)return toast('No tenés tanto ahorrado','err');
+    db.ahorro.push({id:uid(),date:d.date,concept:d.concept,amount:out?-a:a});
+    if(out&&d.spent==='1')db.moves.push({id:uid(),concept:'Retiro de ahorros'+(d.concept?': '+d.concept:''),amount:a,date:d.date});
+    save();closeM();render();toast('Guardado');
+  });
 }
 
 /* ---------- COPIA DE SEGURIDAD ---------- */
